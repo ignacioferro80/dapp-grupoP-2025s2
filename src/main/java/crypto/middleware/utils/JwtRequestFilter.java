@@ -30,6 +30,14 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
 
+        final String path = request.getServletPath();
+
+        // 👇 saltar validación de token para endpoints públicos
+        if (path.startsWith("/auth/")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         final String authHeader = request.getHeader("Authorization");
 
         String username = null;

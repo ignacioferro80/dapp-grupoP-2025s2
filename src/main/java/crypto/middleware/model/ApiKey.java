@@ -13,4 +13,12 @@ public class ApiKey {
     @OneToOne
     @JoinColumn(name = "user_id")
     private User user;
+
+    public void setKey(String key) {
+        this.key = key;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
 }

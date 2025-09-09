@@ -28,6 +28,11 @@ dependencies {
 	implementation 'org.postgresql:postgresql' // o mysql según tu BD
 	implementation 'mysql:mysql-connector-java:8.0.33'
 
+	implementation 'org.springframework.boot:spring-boot-starter' // incluye logging
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.slf4j:slf4j-api:2.0.7'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
