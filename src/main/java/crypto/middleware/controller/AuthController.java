@@ -2,54 +2,57 @@ package crypto.middleware.controller;
 
 import crypto.middleware.dtos.LoginRequest;
 import crypto.middleware.dtos.RegisterRequest;
+import crypto.middleware.model.User;
 import crypto.middleware.service.UserService;
-import crypto.middleware.utils.JwtUtil;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
     private final UserService userService;
-    private final AuthenticationManager authenticationManager;
-    private final JwtUtil jwtUtil;
-    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    public AuthController(UserService userService,
-                          AuthenticationManager authenticationManager,
-                          JwtUtil jwtUtil) {
+    public AuthController(UserService userService) {
         this.userService = userService;
-        this.authenticationManager = authenticationManager;
-        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        logger.info("Received registration request for email: " + request.getEmail());
-        String apiKey = userService.registerUser(request);
-        return ResponseEntity.ok(Map.of("apiKey", apiKey));
+    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
+        if (isBlank(req.getEmail()) || isBlank(req.getPassword())) {
+            return ResponseEntity.badRequest().body(new ErrorMsg("Email y contraseña son requeridos"));
+        }
+        try {
+            User u = userService.register(req.getEmail(), req.getPassword(), req.getRole());
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new SimpleUser(u.getEmail(), u.getRole()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorMsg(e.getMessage()));
+        }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
+        if (isBlank(req.getEmail()) || isBlank(req.getPassword())) {
+            return ResponseEntity.badRequest().body(new ErrorMsg("Email y contraseña son requeridos"));
+        }
+        try {
+            String token = userService.loginAndIssueToken(req.getEmail(), req.getPassword());
+            // Para la respuesta necesitamos el role: lo incluimos dentro del token (claim "role")
+            // pero también lo devolvemos en claro:
+            String role = "user"; // por defecto
+            try { role = crypto.middleware.utils.JwtParserShortcut.roleFromToken(token); } catch (Exception ignored) {}
 
-        UserDetails user = userService.loadUserByUsername(request.getEmail());
-        String token = jwtUtil.generateToken(user);
-
-        return ResponseEntity.ok(Map.of("token", token));
+            return ResponseEntity.ok(new AuthResponse(req.getEmail(), role, token));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorMsg(e.getMessage()));
+        }
     }
+
+    private boolean isBlank(String s){ return s == null || s.trim().isEmpty(); }
+
+    // DTOs simples para respuestas de error/usuario
+    static class ErrorMsg { public final String message; ErrorMsg(String m){ this.message = m; } }
+    static class SimpleUser { public final String email, role; SimpleUser(String e,String r){ email=e; role=r; } }
 }
