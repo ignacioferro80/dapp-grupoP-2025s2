@@ -16,7 +16,7 @@ public class JwtUtil {
     // ► Secreto y TTL embebidos (no usa application.properties)
     //   SECRET: 256-bit (HS256). Puedes regenerarlo si quieres.
     private static final SecretKey SECRET_KEY =
-            Keys.hmacShaKeyFor("secretKeyHE".getBytes());
+            Keys.hmacShaKeyFor("A1u7h0r1z3-12345678-DEV-256bits-Secret-Key-ChangeMe!".getBytes());
     private static final long TTL_MILLIS = 24 * 60 * 60 * 1000L; // 24h
 
     public String generateToken(String email, String role) {
