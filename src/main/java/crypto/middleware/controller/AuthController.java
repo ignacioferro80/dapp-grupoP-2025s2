@@ -3,7 +3,7 @@ package crypto.middleware.controller;
 import crypto.middleware.dtos.LoginRequest;
 import crypto.middleware.dtos.RegisterRequest;
 import crypto.middleware.service.UserService;
-import crypto.middleware.utils.JwtUtil;
+import crypto.middleware.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

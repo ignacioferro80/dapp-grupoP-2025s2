@@ -1,4 +1,4 @@
-package com.dapp.sistema;
+package crypto.middleware;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

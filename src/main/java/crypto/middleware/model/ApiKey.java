@@ -1,13 +1,12 @@
 package crypto.middleware.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.*;
 
 @Entity
+@Table (name = "api_key")
 public class ApiKey {
     @Id
+    @Column(name = "api_key_value")
     private String key;
 
     @OneToOne
