@@ -1,4 +1,4 @@
-package crypto.middleware.security;
+package predictions.dapp.security;
 
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.userdetails.UserDetails;

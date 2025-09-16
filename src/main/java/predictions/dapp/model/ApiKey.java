@@ -1,4 +1,4 @@
-package crypto.middleware.model;
+package predictions.dapp.model;
 
 import jakarta.persistence.*;
 

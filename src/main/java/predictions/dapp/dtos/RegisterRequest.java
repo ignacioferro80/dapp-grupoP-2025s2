@@ -1,4 +1,4 @@
-package crypto.middleware.dtos;
+package predictions.dapp.dtos;
 
 public class RegisterRequest {
     private String username;

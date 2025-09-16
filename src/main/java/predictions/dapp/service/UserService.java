@@ -1,11 +1,11 @@
-package crypto.middleware.service;
+package predictions.dapp.service;
 
-import crypto.middleware.dtos.RegisterRequest;
-import crypto.middleware.exceptions.EmailAlreadyInUseException;
-import crypto.middleware.model.ApiKey;
-import crypto.middleware.model.User;
-import crypto.middleware.repositories.ApiKeyRepository;
-import crypto.middleware.repositories.UserRepository;
+import predictions.dapp.dtos.RegisterRequest;
+import predictions.dapp.exceptions.EmailAlreadyInUseException;
+import predictions.dapp.model.ApiKey;
+import predictions.dapp.model.User;
+import predictions.dapp.repositories.ApiKeyRepository;
+import predictions.dapp.repositories.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

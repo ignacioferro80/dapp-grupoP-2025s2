@@ -1,4 +1,4 @@
-package crypto.middleware.exceptions;
+package predictions.dapp.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

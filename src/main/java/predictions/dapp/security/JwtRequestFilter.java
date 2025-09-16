@@ -1,6 +1,6 @@
-package crypto.middleware.security;
+package predictions.dapp.security;
 
-import crypto.middleware.service.UserService;
+import predictions.dapp.service.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

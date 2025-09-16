@@ -1,4 +1,4 @@
-package crypto.middleware.model;
+package predictions.dapp.model;
 
 public class Player {
     Long id;

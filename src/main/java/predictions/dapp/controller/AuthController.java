@@ -1,9 +1,9 @@
-package crypto.middleware.controller;
+package predictions.dapp.controller;
 
-import crypto.middleware.dtos.LoginRequest;
-import crypto.middleware.dtos.RegisterRequest;
-import crypto.middleware.service.UserService;
-import crypto.middleware.security.JwtUtil;
+import predictions.dapp.dtos.LoginRequest;
+import predictions.dapp.dtos.RegisterRequest;
+import predictions.dapp.service.UserService;
+import predictions.dapp.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
