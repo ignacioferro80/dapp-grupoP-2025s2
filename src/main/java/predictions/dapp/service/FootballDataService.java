@@ -75,8 +75,4 @@ public class FootballDataService {
         return get(path);
     }
 
-    /** Detalle de partido por ID (incluye alineaciones si el proveedor las expone) */
-    public JsonNode getMatchById(long matchId) throws IOException, InterruptedException {
-        return get("/matches/" + matchId);
-    }
 }
