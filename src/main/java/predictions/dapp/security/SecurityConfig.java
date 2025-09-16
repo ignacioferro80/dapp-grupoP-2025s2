@@ -2,6 +2,7 @@ package predictions.dapp.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,9 +31,11 @@ public class SecurityConfig {
 
                 // 2. Configurar autorización
                 .authorizeHttpRequests(auth -> auth
-                        // Abrir endpoints de autenticación
                         .requestMatchers("/auth/register", "/auth/login").permitAll()
-                        // El resto requiere autenticación
+                        .requestMatchers("/error").permitAll() // <-- importante
+
+                        // si querés dejar públicos los endpoints de fútbol (solo GET):
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/football/**").permitAll()
                         .anyRequest().authenticated()
                 )
 
