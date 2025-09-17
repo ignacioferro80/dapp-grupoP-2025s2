@@ -69,10 +69,45 @@ public class FootballDataService {
     }
 
     /** Partidos (fixtures/resultados) por competición; ej code "PL", "SA", etc. */
-    public JsonNode getMatches(String competitionCode, Integer matchday) throws IOException, InterruptedException {
+    public JsonNode getMatchesByCompetition(String competitionCode, Integer matchday) throws IOException, InterruptedException {
         String path = "/competitions/" + competitionCode + "/matches";
         if (matchday != null) path += "?matchday=" + matchday;
         return get(path);
     }
+
+    /** Resultados finalizados por competición */
+    public JsonNode getResultsByCompetition(String competitionCode) throws IOException, InterruptedException {
+        String path = "/competitions/" + competitionCode + "/matches?status=FINISHED";
+        return get(path);
+    }
+
+    /** Próximos partidos (fixtures) por competición */
+    public JsonNode getFixtures(String competitionCode) throws IOException, InterruptedException {
+        String path = "/competitions/" + competitionCode + "/matches?status=SCHEDULED";
+        return get(path);
+    }
+
+    /** Lista de equipos */
+    public JsonNode getTeams() throws IOException, InterruptedException {
+        return get("/teams");
+    }
+
+    /** Resultados finalizados por equipo */
+    public JsonNode getResultsByTeam(String teamId) throws IOException, InterruptedException {
+        String path = "/teams/" + teamId + "/matches?status=FINISHED";
+        return get(path);
+    }
+
+    /** Próximos partidos (fixtures) por equipo */
+    public JsonNode getFixturesByTeam(String teamId) throws IOException, InterruptedException {
+        String path = "/teams/" + teamId + "/matches?status=SCHEDULED";
+        return get(path);
+    }
+
+    public JsonNode getLastResultByTeam(String teamId) throws IOException, InterruptedException {
+        String path = "/teams/" + teamId + "/matches?status=FINISHED&limit=1";
+        return get(path);
+    }
+
 
 }
