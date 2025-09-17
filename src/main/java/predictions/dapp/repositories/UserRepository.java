@@ -1,6 +1,6 @@
-package crypto.middleware.repositories;
+package predictions.dapp.repositories;
 
-import crypto.middleware.model.User;
+import predictions.dapp.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

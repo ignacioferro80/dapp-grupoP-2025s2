@@ -1,6 +1,6 @@
-package crypto.middleware.repositories;
+package predictions.dapp.repositories;
 
-import crypto.middleware.model.ApiKey;
+import predictions.dapp.model.ApiKey;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

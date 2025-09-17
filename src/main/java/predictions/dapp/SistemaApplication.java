@@ -1,4 +1,4 @@
-package com.dapp.sistema;
+package predictions.dapp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
