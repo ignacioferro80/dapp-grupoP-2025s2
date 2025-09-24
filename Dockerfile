@@ -1,14 +1,13 @@
-# Imagen base con JDK 21
-FROM eclipse-temurin:21-jdk
-
-# Setear el directorio de trabajo
+# Etapa 1: Build con Gradle
+FROM gradle:8.5-jdk21 AS builder
 WORKDIR /app
+COPY . .
+RUN ./gradlew build -x test
 
-# Copiar el archivo jar generado por Gradle/Maven
-COPY build/libs/*.jar app.jar
+# Etapa 2: Imagen final
+FROM eclipse-temurin:21-jdk
+WORKDIR /app
+COPY --from=builder /app/build/libs/*.jar app.jar
 
-# Exponer el puerto que usará la app
 EXPOSE 8080
-
-# Comando para correr la aplicación
-ENTRYPOINT ["java","-jar","sistema-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java","-jar","app.jar"]
