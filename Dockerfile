@@ -1,5 +1,5 @@
 # Etapa 1: Build con Gradle
-FROM gradle:8.5-jdk21 AS builder
+FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 COPY . .
 RUN chmod +x gradlew
