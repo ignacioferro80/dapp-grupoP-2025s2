@@ -11,4 +11,4 @@ COPY build/libs/*.jar app.jar
 EXPOSE 8080
 
 # Comando para correr la aplicación
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["java","-jar","sistema-0.0.1-SNAPSHOT.jar"]
