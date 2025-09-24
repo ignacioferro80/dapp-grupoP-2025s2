@@ -26,23 +26,34 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 1. Desactivar CSRF
+                // 1) CSRF off (API/JWT)
                 .csrf(csrf -> csrf.disable())
 
-                // 2. Configurar autorización
+                // 2) Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/register", "/auth/login").permitAll()
-                        .requestMatchers("/error").permitAll() // <-- importante
+                        // --- Swagger / OpenAPI (must be public) ---
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**"
+                        ).permitAll()
 
-                        // si querés dejar públicos los endpoints de fútbol (solo GET):
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/football/**").permitAll()
+                        // --- Your public endpoints ---
+                        .requestMatchers("/auth/register", "/auth/login").permitAll()
+                        .requestMatchers("/error").permitAll()
+
+                        // Public football GETs (kept as you had it)
+                        .requestMatchers(HttpMethod.GET, "/api/football/**").permitAll()
+
+                        // Everything else requires JWT
                         .anyRequest().authenticated()
                 )
 
-                // 3. Configurar sesión como stateless (sólo JWT)
-                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 3) Stateless (JWT only)
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 4. Agregar tu filtro JWT
+                // 4) JWT filter
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -58,5 +69,3 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-
-
