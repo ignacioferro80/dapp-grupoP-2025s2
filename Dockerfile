@@ -2,6 +2,7 @@
 FROM gradle:8.5-jdk21 AS builder
 WORKDIR /app
 COPY . .
+RUN chmod +x gradlew
 RUN ./gradlew build -x test
 
 # Etapa 2: Imagen final
