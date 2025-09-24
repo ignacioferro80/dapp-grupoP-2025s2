@@ -8,7 +8,7 @@ RUN ./gradlew build -x test
 # Etapa 2: Imagen final
 FROM eclipse-temurin:21-jdk
 WORKDIR /app
-COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=builder /app/build/libs/sistema-0.0.1-SNAPSHOT.jar sistema-0.0.1-SNAPSHOT.jar
 
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","sistema-0.0.1-SNAPSHOT.jar"]
