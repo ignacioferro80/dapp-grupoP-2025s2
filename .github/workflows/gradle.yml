@@ -2,7 +2,7 @@ name: CI - Build and Test
 
 on:
   push:
-    branches: [ "main" ] 
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'   # OpenJDK Temurin
-          java-version: '17'        # O la versión que uses
+          java-version: '21'        # O la versión que uses
 
       # 3. Cache de dependencias Gradle (para hacerlo más rápido)
       - name: Cache Gradle packages
@@ -41,3 +41,21 @@ jobs:
       # 5. Compilar y ejecutar tests
       - name: Build with Gradle
         run: ./gradlew build
+
+      - name: Run tests with coverage
+        run: ./gradlew clean test jacocoTestReport
+
+      - name: Upload coverage report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/reports/jacoco/test/html
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=ignacioferro80_dapp-grupoP-2025s2
+            -Dsonar.organization=ignacioferro80
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
