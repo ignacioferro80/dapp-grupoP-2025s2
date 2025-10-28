@@ -1,8 +1,57 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.5'
-	id 'io.spring.dependency-management' version '1.1.7'
-    id("jacoco")
+    id 'java'
+    id 'org.springframework.boot' version '3.5.5'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
+}
+
+group = 'com.dapp'
+version = '0.0.1-SNAPSHOT'
+description = 'Proyecto de la materia Desarrollo de Aplicaciones - 2025s2'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // --- Spring Boot starters ---
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // --- DB drivers (Boot 3.5 gestiona las versiones) ---
+    implementation 'org.postgresql:postgresql'
+    implementation 'com.mysql:mysql-connector-j'  // artefacto moderno
+
+    // --- JWT ---
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // --- OpenAPI/Swagger UI ---
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+    // --- Scraper / HTML parsing ---
+    implementation 'org.jsoup:jsoup:1.15.3'
+
+    // --- Selenium + WebDriverManager (para tu WhoScoredScraperService) ---
+    implementation 'org.seleniumhq.selenium:selenium-java:4.25.0'
+    implementation 'io.github.bonigarcia:webdrivermanager:5.9.2'
+
+    // --- Utilidades varias / logging API (Boot ya trae logback) ---
+    implementation 'org.slf4j:slf4j-api:2.0.7'
+
+    // --- DB embebida para tests/demo (si la usás) ---
+    implementation 'org.hsqldb:hsqldb'
+
+    // --- Testing ---
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 tasks.test {
@@ -17,48 +66,4 @@ tasks.jacocoTestReport {
         html.required.set(true)
         csv.required.set(false)
     }
-}
-
-group = 'com.dapp'
-version = '0.0.1-SNAPSHOT'
-description = 'Proyecto de la materia Desarrollo de Aplicaciones - 2025s2'
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
-}
-
-repositories {
-	mavenCentral()
-}
-
-dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-	implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
-	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.postgresql:postgresql'
-	implementation 'mysql:mysql-connector-java:8.0.33'
-
-	implementation 'org.springframework.boot:spring-boot-starter' // incluye logging
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.slf4j:slf4j-api:2.0.7'
-
-    implementation 'org.hsqldb:hsqldb'
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
-
-    // Scrapper dependency
-    implementation 'org.jsoup:jsoup:1.15.3'
-
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
 }
