@@ -34,6 +34,8 @@ public class SecurityConfig {
                         // Allow access to the scraping API endpoints
                         .requestMatchers(HttpMethod.GET, "/api/player/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/match/**").permitAll()
+                        // Allow access to ALL football API endpoints (public)
+                        .requestMatchers(HttpMethod.GET, "/api/football/**").permitAll()
                         .anyRequest().authenticated() // All other requests require authentication
                 )
 

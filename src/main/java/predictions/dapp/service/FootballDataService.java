@@ -12,6 +12,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Cliente simple para Football-Data v4 usando Java 11 HttpClient.
@@ -24,6 +26,7 @@ public class FootballDataService {
     private final ObjectMapper mapper = new ObjectMapper();
     private final String baseUrl;
     private final String token; // resuelto por env o properties
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public FootballDataService(
             @Value("${football.api.base}") String baseUrl,
@@ -109,5 +112,28 @@ public class FootballDataService {
         return get(path);
     }
 
+    /**
+     * Obtiene los partidos programados de un equipo desde hoy hasta el final del año actual.
+     *
+     * @param teamId ID del equipo
+     * @return JsonNode con los partidos programados
+     * @throws IOException si hay un error de I/O
+     * @throws InterruptedException si la petición es interrumpida
+     */
+    public JsonNode getFutureMatchesByTeamFromNowToEndOfYear(String teamId) throws IOException, InterruptedException {
+        // Obtener la fecha actual
+        LocalDate today = LocalDate.now();
+        // Obtener el último día del año actual
+        LocalDate endOfYear = LocalDate.of(today.getYear(), 12, 31);
 
+        // Formatear las fechas a yyyy-MM-dd
+        String dateFrom = today.format(DATE_FORMATTER);
+        String dateTo = endOfYear.format(DATE_FORMATTER);
+
+        // Construir el path con los parámetros de fecha y status
+        String path = String.format("/teams/%s/matches?dateFrom=%s&dateTo=%s&status=SCHEDULED",
+                teamId, dateFrom, dateTo);
+
+        return get(path);
+    }
 }
