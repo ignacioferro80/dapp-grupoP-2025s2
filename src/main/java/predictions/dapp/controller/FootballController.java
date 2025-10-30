@@ -50,26 +50,45 @@ public class FootballController {
         return ResponseEntity.ok(service.getFixtures(code));
     }
 
+    /**
+     * GET /api/football/teams
+     */
     @GetMapping("/teams")
     public ResponseEntity<JsonNode> teams() throws Exception {
         return ResponseEntity.ok(service.getTeams());
     }
 
-    /** GET /api/football/teams/{id}/results */
+    /**
+     * GET /api/football/teams/{id}/results
+     */
     @GetMapping("/teams/{id}/results")
     public ResponseEntity<JsonNode> resultsByTeam(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(service.getResultsByTeam(id));
     }
 
-    /** GET /api/football/teams/{id}/fixtures */
+    /**
+     * GET /api/football/teams/{id}/fixtures
+     */
     @GetMapping("/teams/{id}/fixtures")
     public ResponseEntity<JsonNode> fixturesByTeam(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(service.getFixturesByTeam(id));
     }
 
+    /**
+     * GET /api/football/teams/{id}/lastResult
+     */
     @GetMapping("/teams/{id}/lastResult")
     public ResponseEntity<JsonNode> lastResultByTeam(@PathVariable String id) throws Exception {
         return ResponseEntity.ok(service.getLastResultByTeam(id));
     }
 
+    /**
+     * GET /api/football/teams/{id}/futureMatches
+     * Obtain remaining matches for the team from now until the end of the year (only providing id)
+     */
+    //http://localhost:8080/api/football/teams/86/futureMatches
+    @GetMapping("/teams/{id}/futureMatches")
+    public ResponseEntity<JsonNode> getFutureMatchesByTeamFromNowToEndOfYear(@PathVariable String id) throws Exception {
+        return ResponseEntity.ok(service.getFutureMatchesByTeamFromNowToEndOfYear(id));
+    }
 }
