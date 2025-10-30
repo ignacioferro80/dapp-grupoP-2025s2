@@ -1,5 +1,6 @@
 package predictions.dapp.controller;
 
+import org.springframework.security.authentication.BadCredentialsException;
 import predictions.dapp.dtos.LoginRequest;
 import predictions.dapp.dtos.RegisterRequest;
 import predictions.dapp.service.UserService;
@@ -43,13 +44,17 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
 
-        UserDetails user = userService.loadUserByUsername(request.getEmail());
-        String token = jwtUtil.generateToken(user);
+            UserDetails user = userService.loadUserByUsername(request.getEmail());
+            String token = jwtUtil.generateToken(user);
 
-        return ResponseEntity.ok(Map.of("token", token));
+            return ResponseEntity.ok(Map.of("token", token));
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid email or password"));
+        }
     }
 }
