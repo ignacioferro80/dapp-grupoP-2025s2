@@ -160,7 +160,7 @@ public class FootballDataService {
     }
 
     /**
-     * Gets top scorers from a competition
+     * Gets top scorers from a competition using competition code
      *
      * @param competitionCode Code of the competition (e.g., "SA" for Serie A)
      * @param limit Maximum number of scorers to return
@@ -172,6 +172,22 @@ public class FootballDataService {
     public JsonNode getTopScorers(String competitionCode, int limit, String season) throws IOException, InterruptedException {
         String path = String.format("/competitions/%s/scorers?limit=%d&season=%s",
                 competitionCode, limit, season);
+        return get(path);
+    }
+
+    /**
+     * Gets top scorers from a competition using competition ID
+     *
+     * @param competitionId ID of the competition (e.g., "2019" for Serie A)
+     * @param limit Maximum number of scorers to return
+     * @param season Season year (e.g., "2024")
+     * @return JsonNode with top scorers data
+     * @throws IOException si hay un error de I/O
+     * @throws InterruptedException si la petición es interrumpida
+     */
+    public JsonNode getTopScorersByCompetitionId(String competitionId, int limit, String season) throws IOException, InterruptedException {
+        String path = String.format("/competitions/%s/scorers?limit=%d&season=%s",
+                competitionId, limit, season);
         return get(path);
     }
 

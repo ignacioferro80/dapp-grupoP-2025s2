@@ -1,6 +1,5 @@
 package predictions.dapp.model;
 
-
 import jakarta.persistence.*;
 
 @Entity
@@ -14,7 +13,12 @@ public class Consultas {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Lob
+    @Column(name = "rendimiento", columnDefinition = "LONGTEXT")
     private String rendimiento;
+
+    @Lob
+    @Column(name = "predicciones", columnDefinition = "LONGTEXT")
     private String predicciones;
 
     public Consultas() {}
