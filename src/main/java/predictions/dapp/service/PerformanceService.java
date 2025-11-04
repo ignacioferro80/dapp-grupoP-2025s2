@@ -37,7 +37,6 @@ public class PerformanceService {
 
     /**
      * Main entry point: Fetches performance data for a player
-     *
      * Strategy:
      * 1. Get all available competitions from API
      * 2. Search for player in major leagues first (faster)
