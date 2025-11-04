@@ -5,6 +5,7 @@ on:
     branches:
       - "main"
       - "TP-2"
+      - "feature/profile-tests"
   pull_request:
     branches: [ "main" ]
 
@@ -44,8 +45,15 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Run tests with coverage
-        run: ./gradlew clean test jacocoTestReport
+      - name: Run Unit Tests
+        run: ./gradlew unitTest jacocoTestReport
+
+      - name: Run E2E Tests
+        run: ./gradlew e2eTest
+        env:
+          DB_URL: jdbc:mysql://mysql:3306/sistema_e2e
+          DB_USER: root
+          DB_PASSWORD: root
 
       - name: Upload coverage report as artifact
         uses: actions/upload-artifact@v4

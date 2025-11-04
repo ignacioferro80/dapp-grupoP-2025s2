@@ -68,3 +68,22 @@ tasks.jacocoTestReport {
         csv.required.set(false)
     }
 }
+
+tasks.register('unitTest', Test) {
+    description = "Ejecuta los tests unitarios con el profile 'test'"
+    group = "verification"
+    systemProperty 'spring.profiles.active', 'test'
+    useJUnitPlatform {
+        includeTags 'unit'
+    }
+}
+
+tasks.register('e2eTest', Test) {
+    description = "Ejecuta los tests end-to-end con el profile 'e2e'"
+    group = "verification"
+    systemProperty 'spring.profiles.active', 'e2e'
+    useJUnitPlatform {
+        includeTags 'e2e'
+    }
+}
+
