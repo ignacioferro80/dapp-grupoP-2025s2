@@ -37,9 +37,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/player/").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/match/").permitAll()
                         // Allow access to ALL football API endpoints (public)
-                        .requestMatchers(HttpMethod.GET, "/api/football/").permitAll()
-                        // Allow access to prediction, performance, and history endpoints (works for both logged in and not logged in)
-                        .requestMatchers("/api/prediction", "/api/performance/", "/api/history").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/football/**").permitAll()
+                        // Allow access to prediction, performance, and history endpoints
+                        // NOTE: These check authentication internally and return appropriate messages
+                        .requestMatchers("/api/prediction", "/api/performance/**", "/api/history").permitAll()
+                        // Allow access to predictions endpoint (checks authentication internally)
+                        .requestMatchers(HttpMethod.GET, "/api/predictions/**").permitAll()
                         .anyRequest().authenticated() // All other requests require authentication
                 )
 
