@@ -7,11 +7,11 @@ import predictions.dapp.service.FootballDataService;
 
 @RestController
 @RequestMapping("/api/football")
-public class FootballController {
+public class FootballDataController {
 
     private final FootballDataService service;
 
-    public FootballController(FootballDataService service) {
+    public FootballDataController(FootballDataService service) {
         this.service = service;
     }
 
@@ -82,9 +82,11 @@ public class FootballController {
         return ResponseEntity.ok(service.getLastResultByTeam(id));
     }
 
+
+    //#################### TP2 #########################
     /**
      * GET /api/football/teams/{id}/futureMatches
-     * Obtain remaining matches for the team from now until the end of the year (only providing id)
+     * Obtain feature matches for the team from now until the end of the year (only providing id)
      */
     //http://localhost:8080/api/football/teams/86/futureMatches
     @GetMapping("/teams/{id}/futureMatches")

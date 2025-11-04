@@ -39,7 +39,7 @@ public class SecurityConfig {
                         // Allow access to ALL football API endpoints (public)
                         .requestMatchers(HttpMethod.GET, "/api/football/**").permitAll()
                         // Allow access to prediction, performance, and history endpoints (works for both logged in and not logged in)
-                        .requestMatchers("/api/prediction", "/api/performance", "/api/history").permitAll()
+                        .requestMatchers("/api/prediction", "/api/performance/**", "/api/history").permitAll()
                         .anyRequest().authenticated() // All other requests require authentication
                 )
 

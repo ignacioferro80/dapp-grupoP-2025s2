@@ -25,7 +25,7 @@ public class FootballDataService {
     private final HttpClient http;
     private final ObjectMapper mapper = new ObjectMapper();
     private final String baseUrl;
-    private final String token; // resuelto por env o properties
+    private final String token;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     public FootballDataService(
@@ -121,19 +121,70 @@ public class FootballDataService {
      * @throws InterruptedException si la petición es interrumpida
      */
     public JsonNode getFutureMatchesByTeamFromNowToEndOfYear(String teamId) throws IOException, InterruptedException {
-        // Obtener la fecha actual
         LocalDate today = LocalDate.now();
-        // Obtener el último día del año actual
         LocalDate endOfYear = LocalDate.of(today.getYear(), 12, 31);
 
-        // Formatear las fechas a yyyy-MM-dd
         String dateFrom = today.format(DATE_FORMATTER);
         String dateTo = endOfYear.format(DATE_FORMATTER);
 
-        // Construir el path con los parámetros de fecha y status
         String path = String.format("/teams/%s/matches?dateFrom=%s&dateTo=%s&status=SCHEDULED",
                 teamId, dateFrom, dateTo);
 
+        return get(path);
+    }
+
+    /**
+     * Gets the matches of a player by their ID.
+     * NOTE: API docs say /persons/ but examples show /players/ - this tries both.
+     *
+     * @param playerId ID del jugador
+     * @return JsonNode con los partidos del jugador
+     * @throws IOException si hay un error de I/O
+     * @throws InterruptedException si la petición es interrumpida
+     */
+    public JsonNode getPlayerMatches(String playerId) throws IOException, InterruptedException {
+        // IMPORTANT: Don't add /v4/ here - baseUrl already contains the version!
+        // First try with "persons" (as per API documentation)
+        try {
+            String path = "/persons/" + playerId + "/matches";
+            return get(path);
+        } catch (IOException e) {
+            // If 404, try with "players" (as per API examples)
+            if (e.getMessage() != null && e.getMessage().contains("404")) {
+                String path = "/players/" + playerId + "/matches";
+                return get(path);
+            }
+            // If it's another error, throw it
+            throw e;
+        }
+    }
+
+    /**
+     * Gets top scorers from a competition
+     *
+     * @param competitionCode Code of the competition (e.g., "SA" for Serie A)
+     * @param limit Maximum number of scorers to return
+     * @param season Season year (e.g., "2024")
+     * @return JsonNode with top scorers data
+     * @throws IOException si hay un error de I/O
+     * @throws InterruptedException si la petición es interrumpida
+     */
+    public JsonNode getTopScorers(String competitionCode, int limit, String season) throws IOException, InterruptedException {
+        String path = String.format("/competitions/%s/scorers?limit=%d&season=%s",
+                competitionCode, limit, season);
+        return get(path);
+    }
+
+    /**
+     * Gets player information by ID
+     *
+     * @param playerId ID of the player
+     * @return JsonNode with player information
+     * @throws IOException si hay un error de I/O
+     * @throws InterruptedException si la petición es interrumpida
+     */
+    public JsonNode getPlayerById(String playerId) throws IOException, InterruptedException {
+        String path = "/persons/" + playerId;
         return get(path);
     }
 }

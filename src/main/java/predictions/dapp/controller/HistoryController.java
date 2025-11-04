@@ -1,5 +1,6 @@
 package predictions.dapp.controller;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,14 +25,14 @@ public class HistoryController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<Map<String, String>> history() {
+    public ResponseEntity<?> history() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         // Check if user is authenticated (not anonymous)
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
             String email = auth.getName();
             Long userId = jwtUtil.extractUserId(email);
-            Map<String, String> response = historyService.getHistory(userId);
+            ObjectNode response = historyService.getHistory(userId);
             return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.ok(Map.of("message", "User not logged in"));
