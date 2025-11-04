@@ -112,13 +112,20 @@ public class FootballDataService {
         return get(path);
     }
 
+
+
+
+
+
+    //############ TP 2 ################
+
     /**
-     * Obtiene los partidos programados de un equipo desde hoy hasta el final del año actual.
+     * Gets future matches for a team from today until the end of the year
      *
-     * @param teamId ID del equipo
-     * @return JsonNode con los partidos programados
-     * @throws IOException si hay un error de I/O
-     * @throws InterruptedException si la petición es interrumpida
+     * @param teamId teams id
+     * @return JsonNode with future matches data
+     * @throws IOException if theres an I/O error
+     * @throws InterruptedException if the request is interrupted
      */
     public JsonNode getFutureMatchesByTeamFromNowToEndOfYear(String teamId) throws IOException, InterruptedException {
         LocalDate today = LocalDate.now();
@@ -133,47 +140,7 @@ public class FootballDataService {
         return get(path);
     }
 
-    /**
-     * Gets the matches of a player by their ID.
-     * NOTE: API docs say /persons/ but examples show /players/ - this tries both.
-     *
-     * @param playerId ID del jugador
-     * @return JsonNode con los partidos del jugador
-     * @throws IOException si hay un error de I/O
-     * @throws InterruptedException si la petición es interrumpida
-     */
-    public JsonNode getPlayerMatches(String playerId) throws IOException, InterruptedException {
-        // IMPORTANT: Don't add /v4/ here - baseUrl already contains the version!
-        // First try with "persons" (as per API documentation)
-        try {
-            String path = "/persons/" + playerId + "/matches";
-            return get(path);
-        } catch (IOException e) {
-            // If 404, try with "players" (as per API examples)
-            if (e.getMessage() != null && e.getMessage().contains("404")) {
-                String path = "/players/" + playerId + "/matches";
-                return get(path);
-            }
-            // If it's another error, throw it
-            throw e;
-        }
-    }
 
-    /**
-     * Gets top scorers from a competition using competition code
-     *
-     * @param competitionCode Code of the competition (e.g., "SA" for Serie A)
-     * @param limit Maximum number of scorers to return
-     * @param season Season year (e.g., "2024")
-     * @return JsonNode with top scorers data
-     * @throws IOException si hay un error de I/O
-     * @throws InterruptedException si la petición es interrumpida
-     */
-    public JsonNode getTopScorers(String competitionCode, int limit, String season) throws IOException, InterruptedException {
-        String path = String.format("/competitions/%s/scorers?limit=%d&season=%s",
-                competitionCode, limit, season);
-        return get(path);
-    }
 
     /**
      * Gets top scorers from a competition using competition ID
