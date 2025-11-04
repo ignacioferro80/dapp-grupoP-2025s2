@@ -87,3 +87,7 @@ tasks.register('e2eTest', Test) {
     }
 }
 
+test {
+    jvmArgs("-XX:+EnableDynamicAgentLoading")
+}
+
