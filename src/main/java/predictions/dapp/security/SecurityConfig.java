@@ -30,16 +30,16 @@ public class SecurityConfig {
                 // Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         // Allow access to Swagger UI and public endpoints
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/", "/v3/api-docs/").permitAll()
                         // Allow access to auth endpoints
                         .requestMatchers("/auth/**").permitAll()
                         // Allow access to the scraping API endpoints
-                        .requestMatchers(HttpMethod.GET, "/api/player/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/match/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/player/").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/match/").permitAll()
                         // Allow access to ALL football API endpoints (public)
-                        .requestMatchers(HttpMethod.GET, "/api/football/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/football/").permitAll()
                         // Allow access to prediction, performance, and history endpoints (works for both logged in and not logged in)
-                        .requestMatchers("/api/prediction", "/api/performance/**", "/api/history").permitAll()
+                        .requestMatchers("/api/prediction", "/api/performance/", "/api/history").permitAll()
                         .anyRequest().authenticated() // All other requests require authentication
                 )
 

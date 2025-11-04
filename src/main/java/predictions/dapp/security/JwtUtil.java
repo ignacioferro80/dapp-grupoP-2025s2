@@ -12,7 +12,7 @@ import io.jsonwebtoken.Jwts;
 
 @Component
 public class JwtUtil {
-    private final String SECRET_KEY = "9uC7g@rBfL3pKzX8sT1wQdAeR6mJvY2h"; // mover a config segura
+    private final String SECRET_KEY = "9uC7grBfL3pKzX8sT1wQdAeR6mJvY2h"; // mover a config segura
     private final UserRepository userRepository;
 
     public JwtUtil(UserRepository userRepository) {
