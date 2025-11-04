@@ -112,13 +112,6 @@ public class FootballDataService {
         return get(path);
     }
 
-
-
-
-
-
-    //############ TP 2 ################
-
     /**
      * Gets future matches for a team from today until the end of the year
      *
@@ -139,8 +132,6 @@ public class FootballDataService {
 
         return get(path);
     }
-
-
 
     /**
      * Gets top scorers from a competition using competition ID
@@ -168,6 +159,31 @@ public class FootballDataService {
      */
     public JsonNode getPlayerById(String playerId) throws IOException, InterruptedException {
         String path = "/persons/" + playerId;
+        return get(path);
+    }
+
+    //#################### PREDICTION METHODS #########################
+
+    /**
+     * Obtiene los últimos N partidos finalizados de un equipo
+     *
+     * @param teamId ID del equipo
+     * @param limit Número de partidos a obtener
+     * @return JsonNode con los partidos
+     */
+    public JsonNode getLastMatchesFinished(String teamId, int limit) throws IOException, InterruptedException {
+        String path = String.format("/teams/%s/matches?status=FINISHED&limit=%d", teamId, limit);
+        return get(path);
+    }
+
+    /**
+     * Obtiene los standings de una competición
+     *
+     * @param competitionId ID de la competición
+     * @return JsonNode con los standings
+     */
+    public JsonNode getStandings(String competitionId) throws IOException, InterruptedException {
+        String path = String.format("/competitions/%s/standings", competitionId);
         return get(path);
     }
 }

@@ -14,11 +14,9 @@ public class Consultas {
     private Long userId;
 
     @Lob
-    @Column(name = "rendimiento", columnDefinition = "LONGTEXT")
     private String rendimiento;
 
     @Lob
-    @Column(name = "predicciones", columnDefinition = "LONGTEXT")
     private String predicciones;
 
     public Consultas() {}
