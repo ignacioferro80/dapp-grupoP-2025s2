@@ -2,6 +2,7 @@ package predictions.dapp.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import net.bytebuddy.implementation.bytecode.Throw;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import predictions.dapp.model.Consultas;
@@ -25,7 +26,7 @@ public class PredictionService {
 
     @Transactional
     public Map<String, Object> predictWinner(String teamId1, String teamId2, Long userId)
-            throws IOException, InterruptedException {
+            throws Exception {
 
         // Obtener estadísticas de ambos equipos
         TeamStats stats1 = getTeamStats(teamId1);
@@ -56,7 +57,7 @@ public class PredictionService {
         return response;
     }
 
-    private TeamStats getTeamStats(String teamId) throws IOException, InterruptedException {
+    private TeamStats getTeamStats(String teamId) throws Exception {
         TeamStats stats = new TeamStats();
 
         // 1. Obtener últimos 10 partidos ganados y goles
@@ -89,8 +90,7 @@ public class PredictionService {
                     }
                 }
             } catch (Exception e) {
-                // Si falla una liga, continuar con las demás
-                System.err.println("Error obteniendo standings para " + leagueName + ": " + e.getMessage());
+                throw new Exception("The temas were not found");
             }
         }
 
@@ -112,11 +112,9 @@ public class PredictionService {
 
         for (JsonNode match : matches) {
             JsonNode score = match.get("score");
-            if (score == null) continue;
-
             String winner = score.path("winner").asText("");
             JsonNode fullTime = score.get("fullTime");
-            if (fullTime == null) continue;
+            if (fullTime == null || score == null) continue;
 
             int homeGoals = fullTime.path("home").asInt(0);
             int awayGoals = fullTime.path("away").asInt(0);
@@ -178,10 +176,10 @@ public class PredictionService {
 
     private Map<String, Object> extractTeamStanding(JsonNode standingsResponse, String teamId) {
         JsonNode standings = standingsResponse.get("standings");
-        if (standings == null || !standings.isArray() || standings.size() == 0) return null;
+        if (standings == null || !standings.isArray() || standings.size() == 0) return Collections.emptyMap();
 
         JsonNode table = standings.get(0).get("table");
-        if (table == null || !table.isArray()) return null;
+        if (table == null || !table.isArray()) return Collections.emptyMap();
 
         for (JsonNode entry : table) {
             if (teamId.equals(entry.path("team").path("id").asText(""))) {
@@ -192,7 +190,7 @@ public class PredictionService {
                 return result;
             }
         }
-        return null;
+        return Collections.emptyMap();
     }
 
     private double calculateProbability(TeamStats stats) {
@@ -228,16 +226,12 @@ public class PredictionService {
 
             if (existingPredictions != null && !existingPredictions.isEmpty()
                     && !existingPredictions.equals("Predictions logged in")) {
-                try {
                     JsonNode existing = mapper.readTree(existingPredictions);
                     if (existing.isArray()) {
                         for (JsonNode node : existing) {
                             predictionsList.add(mapper.convertValue(node, Map.class));
                         }
                     }
-                } catch (Exception e) {
-                    // Si no es un array válido, empezar lista nueva
-                }
             }
 
             // Agregar nueva predicción con timestamp
