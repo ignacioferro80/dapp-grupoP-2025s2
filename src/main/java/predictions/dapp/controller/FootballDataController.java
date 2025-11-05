@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import predictions.dapp.service.FootballDataService;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api/football")
 @Tag(name = "Football Data", description = "Public football data APIs - competitions, teams, matches, and fixtures from Football-Data.org")
@@ -37,27 +39,29 @@ public class FootballDataController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = JsonNode.class),
                             examples = @ExampleObject(
-                                    value = "{\n" +
-                                            "  \"competitions\": [\n" +
-                                            "    {\n" +
-                                            "      \"id\": 2021,\n" +
-                                            "      \"name\": \"Premier League\",\n" +
-                                            "      \"code\": \"PL\",\n" +
-                                            "      \"area\": {\"name\": \"England\"}\n" +
-                                            "    },\n" +
-                                            "    {\n" +
-                                            "      \"id\": 2014,\n" +
-                                            "      \"name\": \"La Liga\",\n" +
-                                            "      \"code\": \"PD\",\n" +
-                                            "      \"area\": {\"name\": \"Spain\"}\n" +
-                                            "    }\n" +
-                                            "  ]\n" +
-                                            "}"
+                                    value = """
+                                            {
+                                              "competitions": [
+                                                {
+                                                  "id": 2021,
+                                                  "name": "Premier League",
+                                                  "code": "PL",
+                                                  "area": {"name": "England"}
+                                                },
+                                                {
+                                                  "id": 2014,
+                                                  "name": "La Liga",
+                                                  "code": "PD",
+                                                  "area": {"name": "Spain"}
+                                                }
+                                              ]
+                                            }
+                                            """
                             )
                     )
             )
     })
-    public ResponseEntity<JsonNode> competitions() throws Exception {
+    public ResponseEntity<JsonNode> competitions() throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getCompetitions());
     }
 
@@ -74,17 +78,19 @@ public class FootballDataController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = JsonNode.class),
                             examples = @ExampleObject(
-                                    value = "{\n" +
-                                            "  \"matches\": [\n" +
-                                            "    {\n" +
-                                            "      \"id\": 123456,\n" +
-                                            "      \"homeTeam\": {\"name\": \"Arsenal\"},\n" +
-                                            "      \"awayTeam\": {\"name\": \"Chelsea\"},\n" +
-                                            "      \"score\": {\"fullTime\": {\"home\": 2, \"away\": 1}},\n" +
-                                            "      \"status\": \"FINISHED\"\n" +
-                                            "    }\n" +
-                                            "  ]\n" +
-                                            "}"
+                                    value = """
+                                            {
+                                              "matches": [
+                                                {
+                                                  "id": 123456,
+                                                  "homeTeam": {"name": "Arsenal"},
+                                                  "awayTeam": {"name": "Chelsea"},
+                                                  "score": {"fullTime": {"home": 2, "away": 1}},
+                                                  "status": "FINISHED"
+                                                }
+                                              ]
+                                            }
+                                            """
                             )
                     )
             )
@@ -94,7 +100,7 @@ public class FootballDataController {
             @PathVariable String code,
             @Parameter(description = "Optional matchday number to filter specific round", example = "28")
             @RequestParam(required = false) Integer matchday
-    ) throws Exception {
+    ) throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getMatchesByCompetition(code, matchday));
     }
 
@@ -115,7 +121,7 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> resultsByCompetition(
             @Parameter(description = "Competition code", example = "PL", required = true)
-            @PathVariable String code) throws Exception {
+            @PathVariable String code) throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getResultsByCompetition(code));
     }
 
@@ -136,7 +142,7 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> fixturesByCompetition(
             @Parameter(description = "Competition code", example = "PL", required = true)
-            @PathVariable String code) throws Exception {
+            @PathVariable String code) throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getFixtures(code));
     }
 
@@ -153,21 +159,23 @@ public class FootballDataController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = JsonNode.class),
                             examples = @ExampleObject(
-                                    value = "{\n" +
-                                            "  \"teams\": [\n" +
-                                            "    {\n" +
-                                            "      \"id\": 86,\n" +
-                                            "      \"name\": \"Real Madrid CF\",\n" +
-                                            "      \"shortName\": \"Real Madrid\",\n" +
-                                            "      \"founded\": 1902\n" +
-                                            "    }\n" +
-                                            "  ]\n" +
-                                            "}"
+                                    value = """
+                                            {
+                                              "teams": [
+                                                {
+                                                  "id": 86,
+                                                  "name": "Real Madrid CF",
+                                                  "shortName": "Real Madrid",
+                                                  "founded": 1902
+                                                }
+                                              ]
+                                            }
+                                            """
                             )
                     )
             )
     })
-    public ResponseEntity<JsonNode> teams() throws Exception {
+    public ResponseEntity<JsonNode> teams() throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getTeams());
     }
 
@@ -188,7 +196,7 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> resultsByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws Exception {
+            @PathVariable String id) throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getResultsByTeam(id));
     }
 
@@ -209,7 +217,7 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> fixturesByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws Exception {
+            @PathVariable String id) throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getFixturesByTeam(id));
     }
 
@@ -226,23 +234,25 @@ public class FootballDataController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = JsonNode.class),
                             examples = @ExampleObject(
-                                    value = "{\n" +
-                                            "  \"matches\": [\n" +
-                                            "    {\n" +
-                                            "      \"homeTeam\": {\"name\": \"Real Madrid\"},\n" +
-                                            "      \"awayTeam\": {\"name\": \"Barcelona\"},\n" +
-                                            "      \"score\": {\"fullTime\": {\"home\": 3, \"away\": 1}},\n" +
-                                            "      \"utcDate\": \"2024-10-26T20:00:00Z\"\n" +
-                                            "    }\n" +
-                                            "  ]\n" +
-                                            "}"
+                                    value = """
+                                            {
+                                              "matches": [
+                                                {
+                                                  "homeTeam": {"name": "Real Madrid"},
+                                                  "awayTeam": {"name": "Barcelona"},
+                                                  "score": {"fullTime": {"home": 3, "away": 1}},
+                                                  "utcDate": "2024-10-26T20:00:00Z"
+                                                }
+                                              ]
+                                            }
+                                            """
                             )
                     )
             )
     })
     public ResponseEntity<JsonNode> lastResultByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws Exception {
+            @PathVariable String id) throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getLastResultByTeam(id));
     }
 
@@ -259,23 +269,25 @@ public class FootballDataController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = JsonNode.class),
                             examples = @ExampleObject(
-                                    value = "{\n" +
-                                            "  \"matches\": [\n" +
-                                            "    {\n" +
-                                            "      \"homeTeam\": {\"name\": \"Real Madrid\"},\n" +
-                                            "      \"awayTeam\": {\"name\": \"Atletico Madrid\"},\n" +
-                                            "      \"utcDate\": \"2024-11-15T20:00:00Z\",\n" +
-                                            "      \"status\": \"SCHEDULED\"\n" +
-                                            "    }\n" +
-                                            "  ]\n" +
-                                            "}"
+                                    value = """
+                                            {
+                                              "matches": [
+                                                {
+                                                  "homeTeam": {"name": "Real Madrid"},
+                                                  "awayTeam": {"name": "Atletico Madrid"},
+                                                  "utcDate": "2024-11-15T20:00:00Z",
+                                                  "status": "SCHEDULED"
+                                                }
+                                              ]
+                                            }
+                                            """
                             )
                     )
             )
     })
     public ResponseEntity<JsonNode> getFutureMatchesByTeamFromNowToEndOfYear(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws Exception {
+            @PathVariable String id) throws IOException, InterruptedException {
         return ResponseEntity.ok(service.getFutureMatchesByTeamFromNowToEndOfYear(id));
     }
 }

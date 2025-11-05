@@ -47,27 +47,29 @@ public class HistoryController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = ObjectNode.class),
                             examples = @ExampleObject(
-                                    value = "{\n" +
-                                            "  \"Predictions\": [\n" +
-                                            "    {\n" +
-                                            "      \"probabilidad_Arsenal\": \"65.42%\",\n" +
-                                            "      \"probabilidad_Chelsea\": \"34.58%\",\n" +
-                                            "      \"prediction\": \"Arsenal con 65.42%\",\n" +
-                                            "      \"timestamp\": \"Wed Nov 06 10:30:00 ART 2024\"\n" +
-                                            "    }\n" +
-                                            "  ],\n" +
-                                            "  \"Performance\": [\n" +
-                                            "    {\n" +
-                                            "      \"id\": 44,\n" +
-                                            "      \"name\": \"Harry Kane\",\n" +
-                                            "      \"team\": \"FC Bayern München\",\n" +
-                                            "      \"goals\": 12,\n" +
-                                            "      \"matches\": 10,\n" +
-                                            "      \"performance\": 1.2,\n" +
-                                            "      \"competition\": \"Bundesliga\"\n" +
-                                            "    }\n" +
-                                            "  ]\n" +
-                                            "}"
+                                    value = """
+                                            {
+                                              "Predictions": [
+                                                {
+                                                  "probabilidad_Arsenal": "65.42%",
+                                                  "probabilidad_Chelsea": "34.58%",
+                                                  "prediction": "Arsenal con 65.42%",
+                                                  "timestamp": "Wed Nov 06 10:30:00 ART 2024"
+                                                }
+                                              ],
+                                              "Performance": [
+                                                {
+                                                  "id": 44,
+                                                  "name": "Harry Kane",
+                                                  "team": "FC Bayern München",
+                                                  "goals": 12,
+                                                  "matches": 10,
+                                                  "performance": 1.2,
+                                                  "competition": "Bundesliga"
+                                                }
+                                              ]
+                                            }
+                                            """
                             )
                     )
             ),
@@ -87,16 +89,18 @@ public class HistoryController {
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(
-                                    value = "{\n" +
-                                            "  \"Predictions\": \"No data\",\n" +
-                                            "  \"Performance\": \"No data\"\n" +
-                                            "}"
+                                    value = """
+                                            {
+                                              "Predictions": "No data",
+                                              "Performance": "No data"
+                                            }
+                                            """
                             )
                     )
             )
     })
     @SecurityRequirement(name = "Bearer Authentication")
-    public ResponseEntity<?> history() {
+    public ResponseEntity<Object> history() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
@@ -104,8 +108,7 @@ public class HistoryController {
             Long userId = jwtUtil.extractUserId(email);
             ObjectNode response = historyService.getHistory(userId);
             return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.ok(Map.of("message", "User not logged in"));
         }
+        return ResponseEntity.ok(Map.of("message", "User not logged in"));
     }
 }

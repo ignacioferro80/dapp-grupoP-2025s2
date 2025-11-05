@@ -71,7 +71,7 @@ public class PredictionController {
             )
     })
     @SecurityRequirement(name = "Bearer Authentication")
-    public ResponseEntity<?> predictMatchWinner(
+    public ResponseEntity<Object> predictMatchWinner(
             @Parameter(description = "ID of the first team from Football-Data API", example = "86", required = true)
             @PathVariable String teamId1,
             @Parameter(description = "ID of the second team from Football-Data API", example = "65", required = true)
@@ -90,6 +90,12 @@ public class PredictionController {
             Map<String, Object> prediction = predictionService.predictWinner(teamId1, teamId2, userId);
             return ResponseEntity.ok(prediction);
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Request interrupted",
+                    "details", e.getMessage()
+            ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
                     "error", "Error al realizar predicción",

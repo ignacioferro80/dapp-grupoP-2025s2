@@ -13,14 +13,15 @@ import predictions.dapp.scrapper.WhoScoredScraper;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
-import java.io.IOException;
+
+import java.util.Collections;
 import java.util.List;
 
 @RestController
 @Tag(name = "WhoScored Scraper", description = "Web scraping APIs for player statistics and match data from WhoScored.com")
 public class WhoScoredController {
 
-    private WhoScoredScraper scraper = new WhoScoredScraper();
+    private final WhoScoredScraper scraper = new WhoScoredScraper();
 
     @GetMapping("/api/player/{playerId}")
     @Operation(
@@ -45,20 +46,15 @@ public class WhoScoredController {
                     description = "Failed to scrape player data - website unreachable or structure changed",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "null")
+                            examples = @ExampleObject(value = "[]")
                     )
             )
     })
     public List<String> getPlayerStatistics(
             @Parameter(description = "Player ID from WhoScored.com URL", example = "5583", required = true)
             @PathVariable String playerId) {
-        try {
-            String playerUrl = "https://www.whoscored.com/players/" + playerId;
-            return scraper.getPlayerStatistics(playerUrl);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+        String playerUrl = "https://www.whoscored.com/players/" + playerId;
+        return scraper.getPlayerStatistics(playerUrl);
     }
 
     @GetMapping("/api/match/{matchId}/ratings")
@@ -85,20 +81,15 @@ public class WhoScoredController {
                     description = "Failed to scrape team ratings - website unreachable or structure changed",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "null")
+                            examples = @ExampleObject(value = "[]")
                     )
             )
     })
     public List<String> getTeamRatings(
             @Parameter(description = "Match ID from WhoScored.com URL", example = "1234567", required = true)
             @PathVariable String matchId) {
-        try {
-            String matchUrl = "https://www.whoscored.com/Matches/" + matchId;
-            return scraper.getTeamRatings(matchUrl);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+        String matchUrl = "https://www.whoscored.com/Matches/" + matchId;
+        return scraper.getTeamRatings(matchUrl);
     }
 
     @GetMapping("/api/match/{matchId}/patterns")
@@ -125,19 +116,14 @@ public class WhoScoredController {
                     description = "Failed to scrape game patterns - website unreachable or structure changed",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(value = "null")
+                            examples = @ExampleObject(value = "[]")
                     )
             )
     })
     public List<String> getGamePatterns(
             @Parameter(description = "Match ID from WhoScored.com URL", example = "1234567", required = true)
             @PathVariable String matchId) {
-        try {
-            String matchUrl = "https://www.whoscored.com/Matches/" + matchId;
-            return scraper.getGamePatterns(matchUrl);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+        String matchUrl = "https://www.whoscored.com/Matches/" + matchId;
+        return scraper.getGamePatterns(matchUrl);
     }
 }

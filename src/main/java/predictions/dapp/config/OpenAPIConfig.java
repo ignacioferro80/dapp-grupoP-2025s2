@@ -2,8 +2,6 @@ package predictions.dapp.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.info.Contact;
-import io.swagger.v3.oas.models.info.License;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -13,14 +11,16 @@ import io.swagger.v3.oas.models.Components;
 @Configuration
 public class OpenAPIConfig {
 
+    private static final String BEARER_AUTH_SCHEME = "bearerAuth";
+
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
-                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH_SCHEME))
                 .components(new Components()
-                        .addSecuritySchemes("bearerAuth",
+                        .addSecuritySchemes(BEARER_AUTH_SCHEME,
                                 new SecurityScheme()
-                                        .name("bearerAuth")
+                                        .name(BEARER_AUTH_SCHEME)
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")))
@@ -30,4 +30,3 @@ public class OpenAPIConfig {
                         .description("Documentación de endpoints con JWT Authentication"));
     }
 }
-

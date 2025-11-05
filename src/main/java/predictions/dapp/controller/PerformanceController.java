@@ -52,24 +52,28 @@ public class PerformanceController {
                             examples = {
                                     @ExampleObject(
                                             name = "Top Scorer Found",
-                                            value = "{\n" +
-                                                    "  \"id\": 44,\n" +
-                                                    "  \"name\": \"Harry Kane\",\n" +
-                                                    "  \"team\": \"FC Bayern München\",\n" +
-                                                    "  \"goals\": 12,\n" +
-                                                    "  \"matches\": 10,\n" +
-                                                    "  \"performance\": 1.2,\n" +
-                                                    "  \"competition\": \"Bundesliga\"\n" +
-                                                    "}"
+                                            value = """
+                                                    {
+                                                      "id": 44,
+                                                      "name": "Harry Kane",
+                                                      "team": "FC Bayern München",
+                                                      "goals": 12,
+                                                      "matches": 10,
+                                                      "performance": 1.2,
+                                                      "competition": "Bundesliga"
+                                                    }
+                                                    """
                                     ),
                                     @ExampleObject(
                                             name = "Player Not In Top Scorers",
-                                            value = "{\n" +
-                                                    "  \"id\": 12345,\n" +
-                                                    "  \"name\": \"John Smith\",\n" +
-                                                    "  \"team\": \"Example FC\",\n" +
-                                                    "  \"performance\": \"Player 12345 John Smith performance is below average top players\"\n" +
-                                                    "}"
+                                            value = """
+                                                    {
+                                                      "id": 12345,
+                                                      "name": "John Smith",
+                                                      "team": "Example FC",
+                                                      "performance": "Player 12345 John Smith performance is below average top players"
+                                                    }
+                                                    """
                                     )
                             }
                     )
@@ -96,7 +100,7 @@ public class PerformanceController {
             )
     })
     @SecurityRequirement(name = "Bearer Authentication")
-    public ResponseEntity<?> performance(
+    public ResponseEntity<Object> performance(
             @Parameter(description = "Player ID from Football-Data API", example = "44", required = true)
             @PathVariable String playerId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -108,12 +112,15 @@ public class PerformanceController {
             try {
                 ObjectNode response = performanceService.handlePerformance(userId, playerId);
                 return ResponseEntity.ok(response);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return ResponseEntity.status(500)
+                        .body(Map.of("error", "Request interrupted: " + e.getMessage()));
             } catch (Exception e) {
                 return ResponseEntity.status(500)
                         .body(Map.of("error", "Failed to fetch performance data: " + e.getMessage()));
             }
-        } else {
-            return ResponseEntity.ok(Map.of("message", "User not logged in"));
         }
+        return ResponseEntity.ok(Map.of("message", "User not logged in"));
     }
 }

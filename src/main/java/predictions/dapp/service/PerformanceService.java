@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import predictions.dapp.exceptions.PerformanceDataException;
 import predictions.dapp.model.Consultas;
 import predictions.dapp.repositories.ConsultasRepository;
 
@@ -19,12 +20,15 @@ import java.util.List;
 public class PerformanceService {
 
     private static final Logger logger = LoggerFactory.getLogger(PerformanceService.class);
+    private static final String UNKNOWN_VALUE = "Unknown";
+
     private final ConsultasRepository consultasRepository;
     private final FootballDataService footballDataService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     // Delay between API calls in milliseconds (6 seconds = 10 requests per minute max)
     private static final long API_CALL_DELAY_MS = 6000;
+    private static final long RATE_LIMIT_DELAY_MS = 30000;
 
     // Major football leagues to check first
     private static final List<String> PRIORITY_COMPETITION_IDS = List.of("2019", "2021", "2014", "2015", "2002");
@@ -35,18 +39,11 @@ public class PerformanceService {
         this.footballDataService = footballDataService;
     }
 
-    /**
-     * Main entry point: Fetches performance data for a player
-     * Strategy:
-     * 1. Get all available competitions from API
-     * 2. Search for player in major leagues first (faster)
-     * 3. If not found, search in all other competitions
-     * 4. If still not found, get basic player info as fallback
-     * 5. Save result to database and return
-     */
     @Transactional
     public ObjectNode handlePerformance(Long userId, String playerId) throws IOException, InterruptedException {
-        logger.info("Fetching performance data for userId: {} and playerId: {}", userId, playerId);
+        if (logger.isInfoEnabled()) {
+            logger.info("Fetching performance data for userId: {} and playerId: [PROTECTED]", userId);
+        }
 
         // STEP 1: Fetch all available competitions from API
         JsonNode allCompetitions = fetchAllCompetitions();
@@ -73,16 +70,6 @@ public class PerformanceService {
         return basicPlayerInfo;
     }
 
-
-
-    //Submethods helpers to code main method handlePerformance - detailed comments inside
-    //Easier to read/understand the main method this way - Joaco
-
-    /**
-     * Fetches all football competitions from the API
-     * Calls: getCompetitions() from FootballDataService
-     * Returns: JsonNode with all competitions
-     */
     private JsonNode fetchAllCompetitions() throws IOException, InterruptedException {
         JsonNode competitionsResponse = footballDataService.getCompetitions();
         JsonNode competitions = competitionsResponse.path("competitions");
@@ -93,18 +80,6 @@ public class PerformanceService {
         return competitions;
     }
 
-    /**
-     * Separates competitions into two lists: priority (major leagues) and others
-
-     * Priority competitions (checked first for efficiency):
-     * - 2019: Serie A (Italy)
-     * - 2021: Premier League (England)
-     * - 2014: La Liga (Spain)
-     * - 2015: Ligue 1 (France)
-     * - 2002: Bundesliga (Germany)
-
-     * Returns: CompetitionLists object with both lists
-     */
     private CompetitionLists organizeCompetitionsByPriority(JsonNode competitions) {
         List<JsonNode> priorityComps = new ArrayList<>();
         List<JsonNode> otherComps = new ArrayList<>();
@@ -124,13 +99,6 @@ public class PerformanceService {
         return new CompetitionLists(priorityComps, otherComps);
     }
 
-    /**
-     * Searches for player across all competitions
-     * First searches priority competitions (major leagues) for efficiency.
-     * If not found, searches all other competitions.
-     * Calls: searchInCompetitions() (private method in this class)
-     * Returns: ObjectNode with player stats if found, null if not found
-     */
     private ObjectNode searchForPlayerInAllCompetitions(
             List<JsonNode> priorityCompetitions,
             List<JsonNode> otherCompetitions,
@@ -147,27 +115,14 @@ public class PerformanceService {
         return playerStats;
     }
 
-    /**
-     * Searches for a player within a list of competitions
-     *
-     * For each competition:
-     * 1. Gets top 200 scorers from that competition
-     * 2. Searches through scorers for the player ID
-     * 3. If found, returns player stats with competition name
-     * 4. If not found, continues to next competition
-     *
-     * Calls:
-     * - getTopScorersByCompetitionId() from FootballDataService
-     * - findPlayerInTopScorers() (private method in this class)
-     *
-     * Returns: ObjectNode with player stats if found, null if not found in any
-     */
     private ObjectNode searchInCompetitions(List<JsonNode> competitions, String playerId) throws InterruptedException {
         for (JsonNode competition : competitions) {
             String competitionId = competition.path("id").asText();
             String competitionName = competition.path("name").asText();
 
-            logger.info("Checking competition: {} (ID: {})", competitionName, competitionId);
+            if (logger.isInfoEnabled()) {
+                logger.info("Checking competition: {} (ID: {})", competitionName, competitionId);
+            }
 
             try {
                 // Get top 200 scorers for this competition in 2024 season
@@ -181,7 +136,9 @@ public class PerformanceService {
 
                 if (playerStats != null) {
                     // Player found! Add competition name and return
-                    logger.info("Player {} found in competition: {}", playerId, competitionName);
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Player found in competition: {}", competitionName);
+                    }
                     playerStats.put("competition", competitionName);
                     return playerStats;
                 }
@@ -192,27 +149,14 @@ public class PerformanceService {
                 // If rate limit error (HTTP 429), wait longer before continuing
                 if (e.getMessage() != null && e.getMessage().contains("429")) {
                     logger.warn("Rate limit hit, waiting 30 seconds...");
-                    Thread.sleep(30000);
+                    Thread.sleep(RATE_LIMIT_DELAY_MS);
                 }
-                continue;
             }
         }
 
         return null; // Player not found in any of these competitions
     }
 
-    /**
-     * Searches for a specific player within a competition's top scorers list
-     *
-     * Loops through all scorers and compares player IDs.
-     * When found, extracts and calculates:
-     * - Player ID, name, team
-     * - Goals scored
-     * - Matches played
-     * - Performance score (goals per match)
-     *
-     * Returns: ObjectNode with player stats if found, null if not found
-     */
     private ObjectNode findPlayerInTopScorers(JsonNode topScorers, String playerId) {
         JsonNode scorers = topScorers.path("scorers");
 
@@ -225,12 +169,12 @@ public class PerformanceService {
                 if (id == Integer.parseInt(playerId)) {
                     ObjectNode result = mapper.createObjectNode();
                     result.put("id", id);
-                    result.put("name", player.path("name").asText("Unknown"));
+                    result.put("name", player.path("name").asText(UNKNOWN_VALUE));
 
                     // Extract team information
                     JsonNode team = scorer.path("team");
                     if (!team.isMissingNode()) {
-                        result.put("team", team.path("name").asText("Unknown"));
+                        result.put("team", team.path("name").asText(UNKNOWN_VALUE));
                     }
 
                     // Extract scoring statistics
@@ -252,59 +196,36 @@ public class PerformanceService {
         return null; // Player not found in this scorers list
     }
 
-    /**
-     * Fallback when player is not found in any top scorers list
-     *
-     * Fetches basic player information from API and formats response
-     * to indicate player's performance is below top players.
-     *
-     * Calls: getPlayerById() from FootballDataService
-     *
-     * Returns: ObjectNode with basic player info and performance message
-     */
     private ObjectNode fetchBasicPlayerInfoAsFallback(String playerId) throws IOException, InterruptedException {
-        logger.info("Player {} not found in any competition's top scorers, fetching basic info", playerId);
+        if (logger.isInfoEnabled()) {
+            logger.info("Player not found in any competition's top scorers, fetching basic info");
+        }
 
         JsonNode playerInfo = footballDataService.getPlayerById(playerId);
 
         ObjectNode response = mapper.createObjectNode();
         response.put("id", Integer.parseInt(playerId));
-        response.put("name", playerInfo.path("name").asText("Unknown"));
+        response.put("name", playerInfo.path("name").asText(UNKNOWN_VALUE));
 
         // Try to get team info if available
         JsonNode currentTeam = playerInfo.path("currentTeam");
         if (!currentTeam.isMissingNode()) {
-            response.put("team", currentTeam.path("name").asText("Unknown"));
+            response.put("team", currentTeam.path("name").asText(UNKNOWN_VALUE));
         } else {
-            response.put("team", "Unknown");
+            response.put("team", UNKNOWN_VALUE);
         }
 
         // Add message indicating player is not in top scorers
         String performanceMessage = String.format(
                 "Player %s %s performance is below average top players",
                 playerId,
-                playerInfo.path("name").asText("Unknown")
+                playerInfo.path("name").asText(UNKNOWN_VALUE)
         );
         response.put("performance", performanceMessage);
 
         return response;
     }
 
-    /**
-     * Saves player performance data to database for the user
-     *
-     * Process:
-     * 1. Finds existing user record or creates new one
-     * 2. Gets existing performance array from database
-     * 3. Appends new performance data to array
-     * 4. Saves updated array back to database
-     *
-     * Calls:
-     * - findByUserId() from ConsultasRepository
-     * - save() from ConsultasRepository
-     *
-     * Database: Stores in 'consultas' table, 'rendimiento' column as JSON array
-     */
     private void savePlayerPerformanceToDatabase(Long userId, ObjectNode newPerformanceData) {
         // Find existing consulta record or create new one
         Consultas consulta = consultasRepository.findByUserId(userId)
@@ -328,22 +249,11 @@ public class PerformanceService {
 
             logger.info("Saved performance data for userId: {}", userId);
         } catch (Exception e) {
-            logger.error("Error saving performance data: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to save performance data", e);
+            logger.error("Error saving performance data", e);
+            throw new PerformanceDataException("Failed to save performance data", e);
         }
     }
 
-    /**
-     * Retrieves existing performance array from database record
-     * or creates new empty array if none exists
-     *
-     * Handles different cases:
-     * - Empty/null field: creates new array
-     * - Existing array: returns it
-     * - Existing object (legacy): converts to array with that object
-     *
-     * Returns: ArrayNode ready to append new data
-     */
     private ArrayNode getExistingPerformanceArray(Consultas consulta) throws IOException {
         String existingRendimiento = consulta.getRendimiento();
 
@@ -360,10 +270,9 @@ public class PerformanceService {
                 performanceArray.add(existingNode);
                 return performanceArray;
             }
-        } else {
-            // No existing data, create new array
-            return mapper.createArrayNode();
         }
+        // No existing data, create new array
+        return mapper.createArrayNode();
     }
 
     /**

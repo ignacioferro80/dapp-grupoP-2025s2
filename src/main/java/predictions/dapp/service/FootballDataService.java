@@ -22,6 +22,9 @@ import java.time.format.DateTimeFormatter;
 @Service
 public class FootballDataService {
 
+    private static final String COMPETITIONS_PATH = "/competitions/";
+    private static final String TEAMS_PATH = "/teams/";
+
     private final HttpClient http;
     private final ObjectMapper mapper = new ObjectMapper();
     private final String baseUrl;
@@ -73,20 +76,22 @@ public class FootballDataService {
 
     /** Partidos (fixtures/resultados) por competición; ej code "PL", "SA", etc. */
     public JsonNode getMatchesByCompetition(String competitionCode, Integer matchday) throws IOException, InterruptedException {
-        String path = "/competitions/" + competitionCode + "/matches";
-        if (matchday != null) path += "?matchday=" + matchday;
+        String path = COMPETITIONS_PATH + competitionCode + "/matches";
+        if (matchday != null) {
+            path += "?matchday=" + matchday;
+        }
         return get(path);
     }
 
     /** Resultados finalizados por competición */
     public JsonNode getResultsByCompetition(String competitionCode) throws IOException, InterruptedException {
-        String path = "/competitions/" + competitionCode + "/matches?status=FINISHED";
+        String path = COMPETITIONS_PATH + competitionCode + "/matches?status=FINISHED";
         return get(path);
     }
 
     /** Próximos partidos (fixtures) por competición */
     public JsonNode getFixtures(String competitionCode) throws IOException, InterruptedException {
-        String path = "/competitions/" + competitionCode + "/matches?status=SCHEDULED";
+        String path = COMPETITIONS_PATH + competitionCode + "/matches?status=SCHEDULED";
         return get(path);
     }
 
@@ -97,18 +102,18 @@ public class FootballDataService {
 
     /** Resultados finalizados por equipo */
     public JsonNode getResultsByTeam(String teamId) throws IOException, InterruptedException {
-        String path = "/teams/" + teamId + "/matches?status=FINISHED";
+        String path = TEAMS_PATH + teamId + "/matches?status=FINISHED";
         return get(path);
     }
 
     /** Próximos partidos (fixtures) por equipo */
     public JsonNode getFixturesByTeam(String teamId) throws IOException, InterruptedException {
-        String path = "/teams/" + teamId + "/matches?status=SCHEDULED";
+        String path = TEAMS_PATH + teamId + "/matches?status=SCHEDULED";
         return get(path);
     }
 
     public JsonNode getLastResultByTeam(String teamId) throws IOException, InterruptedException {
-        String path = "/teams/" + teamId + "/matches?status=FINISHED&limit=1";
+        String path = TEAMS_PATH + teamId + "/matches?status=FINISHED&limit=1";
         return get(path);
     }
 
@@ -127,8 +132,8 @@ public class FootballDataService {
         String dateFrom = today.format(DATE_FORMATTER);
         String dateTo = endOfYear.format(DATE_FORMATTER);
 
-        String path = String.format("/teams/%s/matches?dateFrom=%s&dateTo=%s&status=SCHEDULED",
-                teamId, dateFrom, dateTo);
+        String path = String.format("%s%s/matches?dateFrom=%s&dateTo=%s&status=SCHEDULED",
+                TEAMS_PATH, teamId, dateFrom, dateTo);
 
         return get(path);
     }
@@ -144,8 +149,8 @@ public class FootballDataService {
      * @throws InterruptedException si la petición es interrumpida
      */
     public JsonNode getTopScorersByCompetitionId(String competitionId, int limit, String season) throws IOException, InterruptedException {
-        String path = String.format("/competitions/%s/scorers?limit=%d&season=%s",
-                competitionId, limit, season);
+        String path = String.format("%s%s/scorers?limit=%d&season=%s",
+                COMPETITIONS_PATH, competitionId, limit, season);
         return get(path);
     }
 
@@ -172,7 +177,7 @@ public class FootballDataService {
      * @return JsonNode con los partidos
      */
     public JsonNode getLastMatchesFinished(String teamId, int limit) throws IOException, InterruptedException {
-        String path = String.format("/teams/%s/matches?status=FINISHED&limit=%d", teamId, limit);
+        String path = String.format("%s%s/matches?status=FINISHED&limit=%d", TEAMS_PATH, teamId, limit);
         return get(path);
     }
 
@@ -183,7 +188,7 @@ public class FootballDataService {
      * @return JsonNode con los standings
      */
     public JsonNode getStandings(String competitionId) throws IOException, InterruptedException {
-        String path = String.format("/competitions/%s/standings", competitionId);
+        String path = String.format("%s%s/standings", COMPETITIONS_PATH, competitionId);
         return get(path);
     }
 }

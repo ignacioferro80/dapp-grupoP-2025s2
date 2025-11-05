@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.BadCredentialsException;
 import predictions.dapp.dtos.LoginRequest;
 import predictions.dapp.dtos.RegisterRequest;
@@ -22,8 +24,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/auth")
@@ -71,8 +71,10 @@ public class AuthController {
                     )
             )
     })
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        logger.info("Received registration request for email: " + request.getEmail());
+    public ResponseEntity<Object> register(@RequestBody RegisterRequest request) {
+        if (logger.isInfoEnabled()) {
+            logger.info("Received registration request for email: {}", request.getEmail());
+        }
         String apiKey = userService.registerUser(request);
         return ResponseEntity.ok(Map.of("apiKey", apiKey));
     }
@@ -105,7 +107,7 @@ public class AuthController {
                     )
             )
     })
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<Object> login(@RequestBody LoginRequest request) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
