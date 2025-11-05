@@ -1,73 +1,93 @@
 package predictions.dapp.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import predictions.dapp.security.JwtUtil;
 import predictions.dapp.service.PredictionService;
-import predictions.dapp.service.TeamPredictionService;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Predictions", description = "Football match prediction APIs based on team statistics and performance")
 public class PredictionController {
 
     private final PredictionService predictionService;
-    private final TeamPredictionService teamPredictionService;
     private final JwtUtil jwtUtil;
 
     public PredictionController(PredictionService predictionService,
-                                TeamPredictionService teamPredictionService,
                                 JwtUtil jwtUtil) {
         this.predictionService = predictionService;
-        this.teamPredictionService = teamPredictionService;
         this.jwtUtil = jwtUtil;
     }
 
-    @GetMapping("/prediction")
-    public ResponseEntity<Map<String, String>> prediction() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        // Check if user is authenticated (not anonymous)
-        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-            String email = auth.getName();
-            Long userId = jwtUtil.extractUserId(email);
-            String response = predictionService.handlePrediction(userId);
-            return ResponseEntity.ok(Map.of("message", response));
-        } else {
-            return ResponseEntity.ok(Map.of("message", "Predictions not logged in"));
-        }
-    }
-
-    /**
-     * GET /api/predictions/{teamId1}/{teamId2}
-     * Predice el ganador entre dos equipos
-     *
-     * Comportamiento:
-     * - Sin autenticación: Devuelve "User not logged in"
-     * - Con autenticación válida: Hace la predicción y guarda en BD
-     */
     @GetMapping("/predictions/{teamId1}/{teamId2}")
+    @Operation(
+            summary = "Predict match winner between two teams",
+            description = "Analyzes team statistics including recent wins, goals, league standings, and goal differences to predict the winner. Calculates probability percentages for each team based on performance metrics. Requires authentication to save predictions to user history."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Prediction successfully generated",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = Map.class),
+                            examples = @ExampleObject(
+                                    value = "{\"probabilidad_Arsenal\": \"65.42%\", \"probabilidad_Chelsea\": \"34.58%\", \"prediction\": \"Arsenal con 65.42%\"}"
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User not authenticated",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = "{\"message\": \"User not logged in\"}"
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Error processing prediction",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = "{\"error\": \"Error al realizar predicción\", \"details\": \"Team not found\"}"
+                            )
+                    )
+            )
+    })
+    @SecurityRequirement(name = "Bearer Authentication")
     public ResponseEntity<?> predictMatchWinner(
+            @Parameter(description = "ID of the first team from Football-Data API", example = "86", required = true)
             @PathVariable String teamId1,
+            @Parameter(description = "ID of the second team from Football-Data API", example = "65", required = true)
             @PathVariable String teamId2) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        // Verificar si el usuario NO está autenticado
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
             return ResponseEntity.ok(Map.of("message", "User not logged in"));
         }
 
-        // Usuario autenticado - realizar predicción
         try {
             String email = auth.getName();
             Long userId = jwtUtil.extractUserId(email);
 
-            // Realizar predicción y guardar en BD
-            Map<String, Object> prediction = teamPredictionService.predictWinner(teamId1, teamId2, userId);
+            Map<String, Object> prediction = predictionService.predictWinner(teamId1, teamId2, userId);
             return ResponseEntity.ok(prediction);
 
         } catch (Exception e) {

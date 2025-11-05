@@ -29,18 +29,24 @@ public class SecurityConfig {
 
                 // Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Allow access to Swagger UI and public endpoints
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/", "/v3/api-docs/").permitAll()
+                        // Allow access to Swagger UI and API docs (ALL resources)
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
                         // Allow access to auth endpoints
                         .requestMatchers("/auth/**").permitAll()
                         // Allow access to the scraping API endpoints
-                        .requestMatchers(HttpMethod.GET, "/api/player/").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/match/").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/player/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/match/**").permitAll()
                         // Allow access to ALL football API endpoints (public)
                         .requestMatchers(HttpMethod.GET, "/api/football/**").permitAll()
                         // Allow access to prediction, performance, and history endpoints
                         // NOTE: These check authentication internally and return appropriate messages
-                        .requestMatchers("/api/prediction", "/api/performance/**", "/api/history").permitAll()
+                        .requestMatchers("/api/performance/**", "/api/history").permitAll()
                         // Allow access to predictions endpoint (checks authentication internally)
                         .requestMatchers(HttpMethod.GET, "/api/predictions/**").permitAll()
                         .anyRequest().authenticated() // All other requests require authentication

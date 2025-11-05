@@ -1,6 +1,15 @@
 package predictions.dapp.controller;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,6 +24,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Performance", description = "Player performance analysis APIs - retrieves player statistics across competitions")
 public class PerformanceController {
 
     private final PerformanceService performanceService;
@@ -26,10 +36,71 @@ public class PerformanceController {
     }
 
     @GetMapping("/performance/{playerId}")
-    public ResponseEntity<?> performance(@PathVariable String playerId) {
+    @Operation(
+            summary = "Get player performance statistics",
+            description = "Retrieves comprehensive performance data for a specific player by searching across all major football competitions. " +
+                    "Returns goals scored, matches played, performance ratio (goals per match), team, and competition. " +
+                    "If player is not in top scorers, returns basic player information. Requires authentication to save to user history."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Player performance data successfully retrieved",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ObjectNode.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "Top Scorer Found",
+                                            value = "{\n" +
+                                                    "  \"id\": 44,\n" +
+                                                    "  \"name\": \"Harry Kane\",\n" +
+                                                    "  \"team\": \"FC Bayern München\",\n" +
+                                                    "  \"goals\": 12,\n" +
+                                                    "  \"matches\": 10,\n" +
+                                                    "  \"performance\": 1.2,\n" +
+                                                    "  \"competition\": \"Bundesliga\"\n" +
+                                                    "}"
+                                    ),
+                                    @ExampleObject(
+                                            name = "Player Not In Top Scorers",
+                                            value = "{\n" +
+                                                    "  \"id\": 12345,\n" +
+                                                    "  \"name\": \"John Smith\",\n" +
+                                                    "  \"team\": \"Example FC\",\n" +
+                                                    "  \"performance\": \"Player 12345 John Smith performance is below average top players\"\n" +
+                                                    "}"
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User not authenticated",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = "{\"message\": \"User not logged in\"}"
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Error fetching performance data",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = "{\"error\": \"Failed to fetch performance data: Player not found\"}"
+                            )
+                    )
+            )
+    })
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<?> performance(
+            @Parameter(description = "Player ID from Football-Data API", example = "44", required = true)
+            @PathVariable String playerId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        // Check if user is authenticated (not anonymous)
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
             String email = auth.getName();
             Long userId = jwtUtil.extractUserId(email);
