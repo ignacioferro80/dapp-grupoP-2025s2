@@ -35,30 +35,30 @@ public class PredictionService {
     public Map<String, Object> predictWinner(String teamId1, String teamId2, Long userId)
             throws IOException, InterruptedException {
 
-        // Obtener estadísticas de ambos equipos
+        // Obtain stats for both teams
         TeamStats stats1 = getTeamStats(teamId1);
         TeamStats stats2 = getTeamStats(teamId2);
 
-        // Calcular probabilidades
+        // calculate probabilities
         double prob1 = calculateProbability(stats1);
         double prob2 = calculateProbability(stats2);
 
-        // Normalizar probabilidades para que sumen 100%
+        // Round up probabilities to sum 100%
         double total = prob1 + prob2;
         prob1 = (prob1 / total) * 100;
         prob2 = (prob2 / total) * 100;
 
-        // Determinar ganador
+        // Determine winner
         String winner = prob1 > prob2 ? stats1.teamName : stats2.teamName;
         double winnerProb = Math.max(prob1, prob2);
 
-        // Crear respuesta
+        // Prepare response
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("probabilidad_" + stats1.teamName, String.format(PERCENTAGE_FORMAT, prob1));
         response.put("probabilidad_" + stats2.teamName, String.format(PERCENTAGE_FORMAT, prob2));
         response.put("prediction", winner + " con " + String.format(PERCENTAGE_FORMAT, winnerProb));
 
-        // Guardar en BD
+        // Save prediction if user is logged in, in db.
         savePrediction(userId, response);
 
         return response;
@@ -67,14 +67,17 @@ public class PredictionService {
     private TeamStats getTeamStats(String teamId) throws IOException, InterruptedException {
         TeamStats stats = new TeamStats();
 
-        // 1. Obtener últimos 10 partidos ganados y goles
+
+        // 1  Obtain last 10 matches played
         JsonNode lastMatches = footballDataService.getLastMatchesFinished(teamId, 10);
         calculateWinsAndGoals(lastMatches, teamId, stats);
 
-        // 2. Obtener ligas únicas donde jugó
+
+        // 2  Obtain unique leagues played
         Set<String> leagues = getUniqueLeagues(lastMatches);
 
-        // 3. Para cada liga, obtener standings
+
+        // 3  For each league, obtain standings
         StandingsData standingsData = processLeagueStandings(leagues, teamId);
 
         stats.totalPoints = standingsData.totalPoints;
