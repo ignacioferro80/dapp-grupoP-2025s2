@@ -39,6 +39,8 @@ public class SecurityConfig {
                         ).permitAll()
                         // Allow access to auth endpoints
                         .requestMatchers("/auth/**").permitAll()
+                        // Allow accesss to actuator
+                        .requestMatchers("/actuator/**").permitAll()
                         // Allow access to the scraping API endpoints
                         .requestMatchers(HttpMethod.GET, "/api/player/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/match/**").permitAll()
