@@ -4,10 +4,9 @@ on:
   push:
     branches:
       - "main"
-      - "TP-2"
-      - "feature/profile-tests"
+      - "tp-3"
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "tp-3"" ]
 
 jobs:
   build:
