@@ -6,7 +6,7 @@ on:
       - "main"
       - "tp-3"
   pull_request:
-    branches: [ "main", "tp-3"" ]
+    branches: [ "main", "tp-3" ]
 
 jobs:
   build:
