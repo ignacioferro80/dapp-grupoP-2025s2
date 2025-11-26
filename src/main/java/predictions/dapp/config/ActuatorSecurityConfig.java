@@ -13,7 +13,7 @@ public class ActuatorSecurityConfig {
     @Bean
     public SecurityFilterChain actuatorSecurity(HttpSecurity http) throws Exception {
         return http
-                .securityMatcher("/actuator/**") // 🔥 clave
+                .securityMatcher("/actuator/**")
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .csrf(csrf -> csrf.disable())
                 .build();
