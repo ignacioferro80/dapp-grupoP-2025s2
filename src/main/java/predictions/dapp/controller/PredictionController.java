@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import predictions.dapp.security.JwtUtil;
+import predictions.dapp.service.MetricsService;
 import predictions.dapp.service.PredictionService;
 
 import java.util.Map;
@@ -24,11 +25,13 @@ import java.util.Map;
 public class PredictionController {
 
     private final PredictionService predictionService;
+    private final MetricsService metricsService;
     private final JwtUtil jwtUtil;
 
-    public PredictionController(PredictionService predictionService,
+    public PredictionController(PredictionService predictionService, MetricsService metricsService,
                                 JwtUtil jwtUtil) {
         this.predictionService = predictionService;
+        this.metricsService = metricsService;
         this.jwtUtil = jwtUtil;
     }
 
@@ -86,16 +89,18 @@ public class PredictionController {
         try {
             String email = auth.getName();
             Long userId = jwtUtil.extractUserId(email);
+            metricsService.incrementRequests();
 
-            Map<String, Object> prediction = predictionService.predictWinner(teamId1, teamId2, userId);
-            return ResponseEntity.ok(prediction);
+            return metricsService.measureLatency(() -> {
+                try {
+                    Map<String, Object> prediction = predictionService.predictWinner(teamId1, teamId2, userId);
+                    return ResponseEntity.ok(prediction);
+                } catch (Exception e) {
+                    metricsService.incrementErrors();
+                    return ResponseEntity.internalServerError().body(e.getMessage());
+                }
+            });
 
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return ResponseEntity.status(500).body(Map.of(
-                    "error", "Request interrupted",
-                    "details", e.getMessage()
-            ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
                     "error", "Error al realizar predicción",

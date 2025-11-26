@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import predictions.dapp.security.JwtUtil;
+import predictions.dapp.service.MetricsService;
 import predictions.dapp.service.PerformanceService;
 
 import java.util.Map;
@@ -29,10 +30,12 @@ public class PerformanceController {
 
     private final PerformanceService performanceService;
     private final JwtUtil jwtUtil;
+    private final MetricsService metricsService;
 
-    public PerformanceController(PerformanceService performanceService, JwtUtil jwtUtil) {
+    public PerformanceController(PerformanceService performanceService, JwtUtil jwtUtil, MetricsService metricsService) {
         this.performanceService = performanceService;
         this.jwtUtil = jwtUtil;
+        this.metricsService = metricsService;
     }
 
     @GetMapping("/performance/{playerId}")
@@ -103,24 +106,32 @@ public class PerformanceController {
     public ResponseEntity<Object> performance(
             @Parameter(description = "Player ID from Football-Data API", example = "44", required = true)
             @PathVariable String playerId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-            String email = auth.getName();
-            Long userId = jwtUtil.extractUserId(email);
-
+        metricsService.incrementRequests();
+        return metricsService.measureLatency(() -> {
             try {
-                ObjectNode response = performanceService.handlePerformance(userId, playerId);
-                return ResponseEntity.ok(response);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return ResponseEntity.status(500)
-                        .body(Map.of("error", "Request interrupted: " + e.getMessage()));
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+                if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+                    String email = auth.getName();
+                    Long userId = jwtUtil.extractUserId(email);
+
+                    try {
+                        ObjectNode response = performanceService.handlePerformance(userId, playerId);
+                        return ResponseEntity.ok(response);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return ResponseEntity.status(500)
+                                .body(Map.of("error", "Request interrupted: " + e.getMessage()));
+                    } catch (Exception e) {
+                        return ResponseEntity.status(500)
+                                .body(Map.of("error", "Failed to fetch performance data: " + e.getMessage()));
+                    }
+                }
+                return ResponseEntity.ok(Map.of("message", "User not logged in"));
             } catch (Exception e) {
-                return ResponseEntity.status(500)
-                        .body(Map.of("error", "Failed to fetch performance data: " + e.getMessage()));
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             }
-        }
-        return ResponseEntity.ok(Map.of("message", "User not logged in"));
+        });
     }
 }

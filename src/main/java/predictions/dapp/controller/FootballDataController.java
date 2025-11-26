@@ -12,8 +12,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import predictions.dapp.service.FootballDataService;
+import predictions.dapp.service.MetricsService;
 
 import java.io.IOException;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/football")
@@ -21,9 +23,11 @@ import java.io.IOException;
 public class FootballDataController {
 
     private final FootballDataService service;
+    private final MetricsService metricsService;
 
-    public FootballDataController(FootballDataService service) {
+    public FootballDataController(FootballDataService service, MetricsService metricsService) {
         this.service = service;
+        this.metricsService = metricsService;
     }
 
     @GetMapping("/competitions")
@@ -62,7 +66,15 @@ public class FootballDataController {
             )
     })
     public ResponseEntity<JsonNode> competitions() throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getCompetitions());
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getCompetitions());
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 
     @GetMapping("/competitions/{code}/matches")
@@ -101,7 +113,15 @@ public class FootballDataController {
             @Parameter(description = "Optional matchday number to filter specific round", example = "28")
             @RequestParam(required = false) Integer matchday
     ) throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getMatchesByCompetition(code, matchday));
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getMatchesByCompetition(code, matchday));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 
     @GetMapping("/competitions/{code}/results")
@@ -122,7 +142,16 @@ public class FootballDataController {
     public ResponseEntity<JsonNode> resultsByCompetition(
             @Parameter(description = "Competition code", example = "PL", required = true)
             @PathVariable String code) throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getResultsByCompetition(code));
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getResultsByCompetition(code));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
+
     }
 
     @GetMapping("/competitions/{code}/fixtures")
@@ -143,7 +172,16 @@ public class FootballDataController {
     public ResponseEntity<JsonNode> fixturesByCompetition(
             @Parameter(description = "Competition code", example = "PL", required = true)
             @PathVariable String code) throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getFixtures(code));
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getFixtures(code));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
+
     }
 
     @GetMapping("/teams")
@@ -176,7 +214,15 @@ public class FootballDataController {
             )
     })
     public ResponseEntity<JsonNode> teams() throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getTeams());
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getTeams());
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 
     @GetMapping("/teams/{id}/results")
@@ -197,7 +243,15 @@ public class FootballDataController {
     public ResponseEntity<JsonNode> resultsByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
             @PathVariable String id) throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getResultsByTeam(id));
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getResultsByTeam(id));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 
     @GetMapping("/teams/{id}/fixtures")
@@ -218,7 +272,15 @@ public class FootballDataController {
     public ResponseEntity<JsonNode> fixturesByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
             @PathVariable String id) throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getFixturesByTeam(id));
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getFixturesByTeam(id));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 
     @GetMapping("/teams/{id}/lastResult")
@@ -253,7 +315,15 @@ public class FootballDataController {
     public ResponseEntity<JsonNode> lastResultByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
             @PathVariable String id) throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getLastResultByTeam(id));
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getLastResultByTeam(id));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 
     @GetMapping("/teams/{id}/futureMatches")
@@ -288,6 +358,14 @@ public class FootballDataController {
     public ResponseEntity<JsonNode> getFutureMatchesByTeamFromNowToEndOfYear(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
             @PathVariable String id) throws IOException, InterruptedException {
-        return ResponseEntity.ok(service.getFutureMatchesByTeamFromNowToEndOfYear(id));
+        metricsService.incrementRequests();
+        return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
+            try {
+                return ResponseEntity.ok(service.getFutureMatchesByTeamFromNowToEndOfYear(id));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 }

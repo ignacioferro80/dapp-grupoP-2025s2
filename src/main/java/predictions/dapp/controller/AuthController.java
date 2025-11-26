@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.BadCredentialsException;
 import predictions.dapp.dtos.LoginRequest;
 import predictions.dapp.dtos.RegisterRequest;
+import predictions.dapp.service.MetricsService;
 import predictions.dapp.service.UserService;
 import predictions.dapp.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
@@ -34,13 +35,15 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+    private final MetricsService metricsService;
 
     public AuthController(UserService userService,
                           AuthenticationManager authenticationManager,
-                          JwtUtil jwtUtil) {
+                          JwtUtil jwtUtil, MetricsService metricsService) {
         this.userService = userService;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.metricsService = metricsService;
     }
 
     @PostMapping("/register")
@@ -75,8 +78,16 @@ public class AuthController {
         if (logger.isInfoEnabled()) {
             logger.info("Received registration request for email: {}", request.getEmail());
         }
-        String apiKey = userService.registerUser(request);
-        return ResponseEntity.ok(Map.of("apiKey", apiKey));
+        metricsService.incrementRequests();
+        return metricsService.measureLatency(() -> {
+            try {
+                String apiKey = userService.registerUser(request);
+                return ResponseEntity.ok(Map.of("apiKey", apiKey));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 
     @PostMapping("/login")
@@ -109,14 +120,22 @@ public class AuthController {
     })
     public ResponseEntity<Object> login(@RequestBody LoginRequest request) {
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-            );
+            metricsService.incrementRequests();
+            return metricsService.measureLatency(() -> {
+                try {
+                    authenticationManager.authenticate(
+                            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                    );
 
-            UserDetails user = userService.loadUserByUsername(request.getEmail());
-            String token = jwtUtil.generateToken(user);
+                    UserDetails user = userService.loadUserByUsername(request.getEmail());
+                    String token = jwtUtil.generateToken(user);
+                    return ResponseEntity.ok(Map.of("token", token));
+                } catch (Exception e) {
+                    metricsService.incrementErrors();
+                    return ResponseEntity.internalServerError().body(e.getMessage());
+                }
+            });
 
-            return ResponseEntity.ok(Map.of("token", token));
         } catch (BadCredentialsException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid email or password"));
         }
