@@ -1,5 +1,6 @@
 package predictions.dapp.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import predictions.dapp.security.JwtUtil;
 import predictions.dapp.service.HistoryService;
+import predictions.dapp.service.MetricsService;
 
 import java.util.Map;
 
@@ -27,10 +29,12 @@ public class HistoryController {
 
     private final HistoryService historyService;
     private final JwtUtil jwtUtil;
+    private final MetricsService metricsService;
 
-    public HistoryController(HistoryService historyService, JwtUtil jwtUtil) {
+    public HistoryController(HistoryService historyService, JwtUtil jwtUtil, MetricsService metricsService) {
         this.historyService = historyService;
         this.jwtUtil = jwtUtil;
+        this.metricsService = metricsService;
     }
 
     @GetMapping("/history")
@@ -101,14 +105,22 @@ public class HistoryController {
     })
     @SecurityRequirement(name = "Bearer Authentication")
     public ResponseEntity<Object> history() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        metricsService.incrementRequests();
+        return (ResponseEntity<Object>) metricsService.measureLatency(() -> {
+            try {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-            String email = auth.getName();
-            Long userId = jwtUtil.extractUserId(email);
-            ObjectNode response = historyService.getHistory(userId);
-            return ResponseEntity.ok(response);
-        }
-        return ResponseEntity.ok(Map.of("message", "User not logged in"));
+                if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+                    String email = auth.getName();
+                    Long userId = jwtUtil.extractUserId(email);
+                    ObjectNode response = historyService.getHistory(userId);
+                    return ResponseEntity.ok(response);
+                }
+                return ResponseEntity.ok(Map.of("message", "User not logged in"));
+            } catch (Exception e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
+            }
+        });
     }
 }

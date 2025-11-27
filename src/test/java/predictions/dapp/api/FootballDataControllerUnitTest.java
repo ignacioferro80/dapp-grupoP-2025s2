@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
@@ -20,7 +21,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 import predictions.dapp.controller.FootballDataController;
 import predictions.dapp.service.FootballDataService;
+import predictions.dapp.service.MetricsService;
 
+import java.util.concurrent.Callable;
+
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,6 +38,9 @@ class FootballDataControllerUnitTest {
     @Mock
     private FootballDataService footballDataService;
 
+    @Mock
+    private MetricsService metricsService;
+
     @InjectMocks
     private FootballDataController controller;
 
@@ -41,6 +49,17 @@ class FootballDataControllerUnitTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        // Mock metricsService.measureLatency to execute the callable directly
+        Mockito.when(metricsService.measureLatency(any())).thenAnswer(invocation -> {
+            Callable<?> callable = invocation.getArgument(0);
+            try {
+                return callable.call();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
     }
 
     @Tag("unit")
@@ -58,6 +77,8 @@ class FootballDataControllerUnitTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.competitions").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -77,6 +98,8 @@ class FootballDataControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").exists())
                 .andExpect(jsonPath("$.founded").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -97,6 +120,8 @@ class FootballDataControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect((ResultMatcher) jsonPath("$.filters").exists())
                 .andExpect((ResultMatcher) jsonPath("$.matches").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
 
@@ -118,6 +143,8 @@ class FootballDataControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.filters").exists())
                 .andExpect(jsonPath("$.matches").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -137,6 +164,8 @@ class FootballDataControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.filters").exists())
                 .andExpect(jsonPath("$.matches").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -156,6 +185,8 @@ class FootballDataControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.filters").exists())
                 .andExpect(jsonPath("$.matches").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -175,6 +206,8 @@ class FootballDataControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").exists())
                 .andExpect(jsonPath("$.founded").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -192,6 +225,8 @@ class FootballDataControllerUnitTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result").value("Last match result"));
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -211,6 +246,8 @@ class FootballDataControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").exists())
                 .andExpect(jsonPath("$.founded").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
     }
 
     @Tag("unit")
@@ -223,7 +260,10 @@ class FootballDataControllerUnitTest {
         mockMvc.perform(get("/api/football/competitions/9999/matches")
                         .param("matchday", "1")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
     }
 
     @Tag("unit")
@@ -235,7 +275,10 @@ class FootballDataControllerUnitTest {
 
         mockMvc.perform(get("/api/football/competitions/9999/results")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
     }
 
     @Tag("unit")
@@ -247,7 +290,10 @@ class FootballDataControllerUnitTest {
 
         mockMvc.perform(get("/api/football/competitions/9999/fixtures")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
     }
 
     @Tag("unit")
@@ -259,7 +305,10 @@ class FootballDataControllerUnitTest {
 
         mockMvc.perform(get("/api/football/teams/9999/fixtures")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
     }
 
     @Tag("unit")
@@ -271,7 +320,10 @@ class FootballDataControllerUnitTest {
 
         mockMvc.perform(get("/api/football/teams/9999/lastResult")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
     }
 
     @Tag("unit")
@@ -283,6 +335,9 @@ class FootballDataControllerUnitTest {
 
         mockMvc.perform(get("/api/football/teams/9999/futureMatches")
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
     }
 }

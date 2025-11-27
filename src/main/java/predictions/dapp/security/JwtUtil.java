@@ -3,6 +3,7 @@ package predictions.dapp.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -71,5 +72,20 @@ public class JwtUtil {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public static String extractTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || authHeader.isBlank()) {
+            return null;
+        }
+
+        if (!authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        // Devuelve solo el token sin el prefijo "Bearer "
+        return authHeader.substring(7);
     }
 }

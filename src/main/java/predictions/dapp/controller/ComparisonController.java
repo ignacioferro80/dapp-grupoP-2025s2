@@ -13,68 +13,54 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import predictions.dapp.security.JwtUtil;
+import predictions.dapp.service.ComparisonService;
 import predictions.dapp.service.MetricsService;
-import predictions.dapp.service.PredictionService;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@Tag(name = "Predictions", description = "Football match prediction APIs based on team statistics and performance")
-public class PredictionController {
+@Tag(name = "Comparisons", description = "Football team comparison APIs based on team statistics and performance")
+public class ComparisonController {
 
-    private final PredictionService predictionService;
+    private final ComparisonService comparisonService;
     private final MetricsService metricsService;
-    private final JwtUtil jwtUtil;
 
-    public PredictionController(PredictionService predictionService, MetricsService metricsService,
-                                JwtUtil jwtUtil) {
-        this.predictionService = predictionService;
+    public ComparisonController(ComparisonService comparisonService, MetricsService metricsService) {
+        this.comparisonService = comparisonService;
         this.metricsService = metricsService;
-        this.jwtUtil = jwtUtil;
     }
 
-    @GetMapping("/predictions/{teamId1}/{teamId2}")
+    @GetMapping("/compare/{teamId1}/{teamId2}")
     @Operation(
-            summary = "Predict match winner between two teams",
-            description = "Analyzes team statistics including recent wins, goals, league standings, and goal differences to predict the winner. Calculates probability percentages for each team based on performance metrics. Requires authentication to save predictions to user history."
+            summary = "Compare statistics between two teams",
+            description = "Retrieves and compares detailed statistics for two teams including goals, matches played, performance metrics, and competition data. Uses caching to improve performance and reduce API calls."
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Prediction successfully generated",
+                    description = "Comparison successfully generated",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = Map.class),
                             examples = @ExampleObject(
-                                    value = "{\"probabilidad_Arsenal\": \"65.42%\", \"probabilidad_Chelsea\": \"34.58%\", \"prediction\": \"Arsenal con 65.42%\"}"
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "User not authenticated",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(
-                                    value = "{\"message\": \"User not logged in\"}"
+                                    value = "{\"team1\": {\"id\": \"86\", \"name\": \"Arsenal FC\", \"wonGames\": 7, \"totalGoals\": 45, \"totalPoints\": 28, \"avgPosition\": 2.0, \"goalDifference\": 15, \"competitions\": [\"Premier League\", \"UEFA Champions League\"]}, \"team2\": {\"id\": \"65\", \"name\": \"Manchester City FC\", \"wonGames\": 8, \"totalGoals\": 52, \"totalPoints\": 32, \"avgPosition\": 1.0, \"goalDifference\": 20, \"competitions\": [\"Premier League\", \"UEFA Champions League\"]}}"
                             )
                     )
             ),
             @ApiResponse(
                     responseCode = "500",
-                    description = "Error processing prediction",
+                    description = "Error processing comparison",
                     content = @Content(
                             mediaType = "application/json",
                             examples = @ExampleObject(
-                                    value = "{\"error\": \"Error al realizar predicción\", \"details\": \"Team not found\"}"
+                                    value = "{\"error\": \"Error al realizar comparación\", \"details\": \"Team not found\"}"
                             )
                     )
             )
     })
     @SecurityRequirement(name = "Bearer Authentication")
-    public ResponseEntity<Object> predictMatchWinner(
+    public ResponseEntity<Object> compareTeams(
             @Parameter(description = "ID of the first team from Football-Data API", example = "86", required = true)
             @PathVariable String teamId1,
             @Parameter(description = "ID of the second team from Football-Data API", example = "65", required = true)
@@ -87,14 +73,12 @@ public class PredictionController {
         }
 
         try {
-            String email = auth.getName();
-            Long userId = jwtUtil.extractUserId(email);
             metricsService.incrementRequests();
 
             return metricsService.measureLatency(() -> {
                 try {
-                    Map<String, Object> prediction = predictionService.predictWinner(teamId1, teamId2, userId);
-                    return ResponseEntity.ok(prediction);
+                    Map<String, Object> comparison = comparisonService.compareTeams(teamId1, teamId2);
+                    return ResponseEntity.ok(comparison);
                 } catch (Exception e) {
                     metricsService.incrementErrors();
                     return ResponseEntity.internalServerError().body(e.getMessage());
@@ -103,7 +87,7 @@ public class PredictionController {
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
-                    "error", "Error al realizar predicción",
+                    "error", "Error al realizar comparación",
                     "details", e.getMessage()
             ));
         }

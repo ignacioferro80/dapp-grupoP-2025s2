@@ -1,7 +1,6 @@
 package predictions.dapp.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
@@ -28,6 +27,7 @@ public class CacheService {
     // Separate caches for different data types
     private final Map<String, CacheEntry> predictionCache = new ConcurrentHashMap<>();
     private final Map<String, CacheEntry> performanceCache = new ConcurrentHashMap<>();
+    private final Map<String, CacheEntry> comparisonCache = new ConcurrentHashMap<>();
 
     /**
      * Get prediction from cache if available and not expired
@@ -51,6 +51,30 @@ public class CacheService {
     public void cachePrediction(String team1Id, String team2Id, Map<String, Object> prediction) {
         String cacheKey = generatePredictionKey(team1Id, team2Id);
         cacheData(predictionCache, cacheKey, prediction, "Prediction");
+    }
+
+    /**
+     * Get comparison from cache if available and not expired
+     *
+     * @param team1Id First team ID
+     * @param team2Id Second team ID
+     * @return Cached comparison or null if not found/expired
+     */
+    public Map<String, Object> getComparison(String team1Id, String team2Id) {
+        String cacheKey = generateComparisonKey(team1Id, team2Id);
+        return getCachedData(comparisonCache, cacheKey, "Comparison");
+    }
+
+    /**
+     * Cache a comparison result
+     *
+     * @param team1Id First team ID
+     * @param team2Id Second team ID
+     * @param comparison Comparison data to cache
+     */
+    public void cacheComparison(String team1Id, String team2Id, Map<String, Object> comparison) {
+        String cacheKey = generateComparisonKey(team1Id, team2Id);
+        cacheData(comparisonCache, cacheKey, comparison, "Comparison");
     }
 
     /**
@@ -102,10 +126,11 @@ public class CacheService {
     public void clearExpiredEntries() {
         int removedPredictions = clearExpiredFromCache(predictionCache, "Prediction");
         int removedPerformance = clearExpiredFromCache(performanceCache, "Performance");
+        int removedComparisons = clearExpiredFromCache(comparisonCache, "Comparison");
 
-        if (removedPredictions > 0 || removedPerformance > 0) {
-            logger.info("Cleared {} expired prediction(s) and {} expired performance(s)",
-                    removedPredictions, removedPerformance);
+        if (removedPredictions > 0 || removedPerformance > 0 || removedComparisons > 0) {
+            logger.info("Cleared {} expired prediction(s), {} expired performance(s), and {} expired comparison(s)",
+                    removedPredictions, removedPerformance, removedComparisons);
         }
     }
 
@@ -115,6 +140,7 @@ public class CacheService {
     public void clearAllCaches() {
         predictionCache.clear();
         performanceCache.clear();
+        comparisonCache.clear();
         logger.info("All caches cleared");
     }
 
@@ -125,8 +151,10 @@ public class CacheService {
         return new CacheStats(
                 predictionCache.size(),
                 performanceCache.size(),
+                comparisonCache.size(),
                 countActiveEntries(predictionCache),
-                countActiveEntries(performanceCache)
+                countActiveEntries(performanceCache),
+                countActiveEntries(comparisonCache)
         );
     }
 
@@ -142,6 +170,18 @@ public class CacheService {
             return "pred:" + team1Id + ":" + team2Id;
         } else {
             return "pred:" + team2Id + ":" + team1Id;
+        }
+    }
+
+    private String generateComparisonKey(String team1Id, String team2Id) {
+        // Normalize key: always put smaller ID first for consistency
+        int id1 = Integer.parseInt(team1Id);
+        int id2 = Integer.parseInt(team2Id);
+
+        if (id1 <= id2) {
+            return "comp:" + team1Id + ":" + team2Id;
+        } else {
+            return "comp:" + team2Id + ":" + team1Id;
         }
     }
 
@@ -227,27 +267,34 @@ public class CacheService {
     public static class CacheStats {
         private final int totalPredictions;
         private final int totalPerformance;
+        private final int totalComparisons;
         private final int activePredictions;
         private final int activePerformance;
+        private final int activeComparisons;
 
-        public CacheStats(int totalPredictions, int totalPerformance,
-                          int activePredictions, int activePerformance) {
+        public CacheStats(int totalPredictions, int totalPerformance, int totalComparisons,
+                          int activePredictions, int activePerformance, int activeComparisons) {
             this.totalPredictions = totalPredictions;
             this.totalPerformance = totalPerformance;
+            this.totalComparisons = totalComparisons;
             this.activePredictions = activePredictions;
             this.activePerformance = activePerformance;
+            this.activeComparisons = activeComparisons;
         }
 
         public int getTotalPredictions() { return totalPredictions; }
         public int getTotalPerformance() { return totalPerformance; }
+        public int getTotalComparisons() { return totalComparisons; }
         public int getActivePredictions() { return activePredictions; }
         public int getActivePerformance() { return activePerformance; }
+        public int getActiveComparisons() { return activeComparisons; }
 
         @Override
         public String toString() {
             return String.format(
-                    "CacheStats{predictions=%d(%d active), performance=%d(%d active)}",
-                    totalPredictions, activePredictions, totalPerformance, activePerformance
+                    "CacheStats{predictions=%d(%d active), performance=%d(%d active), comparisons=%d(%d active)}",
+                    totalPredictions, activePredictions, totalPerformance, activePerformance, 
+                    totalComparisons, activeComparisons
             );
         }
     }
