@@ -85,7 +85,7 @@ public class AuthController {
                 return ResponseEntity.ok(Map.of("apiKey", apiKey));
             } catch (Exception e) {
                 metricsService.incrementErrors();
-                return ResponseEntity.internalServerError().body(e.getMessage());
+                return ResponseEntity.badRequest().body(e.getMessage());
             }
         });
     }
@@ -119,25 +119,20 @@ public class AuthController {
             )
     })
     public ResponseEntity<Object> login(@RequestBody LoginRequest request) {
-        try {
-            metricsService.incrementRequests();
-            return metricsService.measureLatency(() -> {
-                try {
-                    authenticationManager.authenticate(
-                            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-                    );
-
-                    UserDetails user = userService.loadUserByUsername(request.getEmail());
-                    String token = jwtUtil.generateToken(user);
-                    return ResponseEntity.ok(Map.of("token", token));
-                } catch (Exception e) {
-                    metricsService.incrementErrors();
-                    return ResponseEntity.internalServerError().body(e.getMessage());
-                }
-            });
-
-        } catch (BadCredentialsException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid email or password"));
-        }
+        metricsService.incrementRequests();
+        return metricsService.measureLatency(() -> {
+            try {
+                authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                );
+                UserDetails user = userService.loadUserByUsername(request.getEmail());
+                String token = jwtUtil.generateToken(user);
+                return ResponseEntity.ok(Map.of("token", token));
+            } catch (BadCredentialsException e) {
+                metricsService.incrementErrors();
+                return ResponseEntity.status(403).body(Map.of("error", "Invalid email or password"));
+            }
+        });
     }
+
 }
