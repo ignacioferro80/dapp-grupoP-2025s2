@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,6 +23,11 @@ public class CacheService {
     private static final Logger logger = LoggerFactory.getLogger(CacheService.class);
     private static final long CACHE_TTL_MINUTES = 60; // 1 hour
 
+    // Constants for data types to avoid duplication
+    private static final String PREDICTION_TYPE = "Prediction";
+    private static final String PERFORMANCE_TYPE = "Performance";
+    private static final String COMPARISON_TYPE = "Comparison";
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     // Separate caches for different data types
@@ -34,11 +40,11 @@ public class CacheService {
      *
      * @param team1Id First team ID
      * @param team2Id Second team ID
-     * @return Cached prediction or null if not found/expired
+     * @return Cached prediction or empty map if not found/expired
      */
     public Map<String, Object> getPrediction(String team1Id, String team2Id) {
         String cacheKey = generatePredictionKey(team1Id, team2Id);
-        return getCachedData(predictionCache, cacheKey, "Prediction");
+        return getCachedData(predictionCache, cacheKey, PREDICTION_TYPE);
     }
 
     /**
@@ -50,7 +56,7 @@ public class CacheService {
      */
     public void cachePrediction(String team1Id, String team2Id, Map<String, Object> prediction) {
         String cacheKey = generatePredictionKey(team1Id, team2Id);
-        cacheData(predictionCache, cacheKey, prediction, "Prediction");
+        cacheData(predictionCache, cacheKey, prediction, PREDICTION_TYPE);
     }
 
     /**
@@ -58,11 +64,11 @@ public class CacheService {
      *
      * @param team1Id First team ID
      * @param team2Id Second team ID
-     * @return Cached comparison or null if not found/expired
+     * @return Cached comparison or empty map if not found/expired
      */
     public Map<String, Object> getComparison(String team1Id, String team2Id) {
         String cacheKey = generateComparisonKey(team1Id, team2Id);
-        return getCachedData(comparisonCache, cacheKey, "Comparison");
+        return getCachedData(comparisonCache, cacheKey, COMPARISON_TYPE);
     }
 
     /**
@@ -74,7 +80,7 @@ public class CacheService {
      */
     public void cacheComparison(String team1Id, String team2Id, Map<String, Object> comparison) {
         String cacheKey = generateComparisonKey(team1Id, team2Id);
-        cacheData(comparisonCache, cacheKey, comparison, "Comparison");
+        cacheData(comparisonCache, cacheKey, comparison, COMPARISON_TYPE);
     }
 
     /**
@@ -85,9 +91,9 @@ public class CacheService {
      */
     public ObjectNode getPerformance(String playerId) {
         String cacheKey = generatePerformanceKey(playerId);
-        Map<String, Object> cached = getCachedData(performanceCache, cacheKey, "Performance");
+        Map<String, Object> cached = getCachedData(performanceCache, cacheKey, PERFORMANCE_TYPE);
 
-        if (cached == null) {
+        if (cached == null || cached.isEmpty()) {
             return null;
         }
 
@@ -114,7 +120,7 @@ public class CacheService {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> performanceMap = mapper.convertValue(performance, Map.class);
-            cacheData(performanceCache, cacheKey, performanceMap, "Performance");
+            cacheData(performanceCache, cacheKey, performanceMap, PERFORMANCE_TYPE);
         } catch (Exception e) {
             logger.error("Error caching performance data", e);
         }
@@ -124,9 +130,9 @@ public class CacheService {
      * Clear expired entries from all caches (maintenance operation)
      */
     public void clearExpiredEntries() {
-        int removedPredictions = clearExpiredFromCache(predictionCache, "Prediction");
-        int removedPerformance = clearExpiredFromCache(performanceCache, "Performance");
-        int removedComparisons = clearExpiredFromCache(comparisonCache, "Comparison");
+        int removedPredictions = clearExpiredFromCache(predictionCache);
+        int removedPerformance = clearExpiredFromCache(performanceCache);
+        int removedComparisons = clearExpiredFromCache(comparisonCache);
 
         if (removedPredictions > 0 || removedPerformance > 0 || removedComparisons > 0) {
             logger.info("Cleared {} expired prediction(s), {} expired performance(s), and {} expired comparison(s)",
@@ -196,13 +202,13 @@ public class CacheService {
 
         if (entry == null) {
             logger.debug("{} cache MISS for key: {}", dataType, key);
-            return null;
+            return Collections.emptyMap();
         }
 
         if (entry.isExpired()) {
             logger.debug("{} cache EXPIRED for key: {}", dataType, key);
             cache.remove(key);
-            return null;
+            return Collections.emptyMap();
         }
 
         logger.info("{} cache HIT for key: {} (age: {} minutes)",
@@ -219,7 +225,7 @@ public class CacheService {
         logger.info("{} cached for key: {}", dataType, key);
     }
 
-    private int clearExpiredFromCache(Map<String, CacheEntry> cache, String dataType) {
+    private int clearExpiredFromCache(Map<String, CacheEntry> cache) {
         int removed = 0;
         for (Map.Entry<String, CacheEntry> entry : cache.entrySet()) {
             if (entry.getValue().isExpired()) {
@@ -293,7 +299,7 @@ public class CacheService {
         public String toString() {
             return String.format(
                     "CacheStats{predictions=%d(%d active), performance=%d(%d active), comparisons=%d(%d active)}",
-                    totalPredictions, activePredictions, totalPerformance, activePerformance, 
+                    totalPredictions, activePredictions, totalPerformance, activePerformance,
                     totalComparisons, activeComparisons
             );
         }

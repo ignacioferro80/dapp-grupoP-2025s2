@@ -14,9 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import predictions.dapp.service.FootballDataService;
 import predictions.dapp.service.MetricsService;
 
-import java.io.IOException;
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/football")
 @Tag(name = "Football Data", description = "Public football data APIs - competitions, teams, matches, and fixtures from Football-Data.org")
@@ -65,11 +62,15 @@ public class FootballDataController {
                     )
             )
     })
-    public ResponseEntity<JsonNode> competitions() throws IOException, InterruptedException {
+    public ResponseEntity<JsonNode> competitions() {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getCompetitions());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
@@ -112,11 +113,15 @@ public class FootballDataController {
             @PathVariable String code,
             @Parameter(description = "Optional matchday number to filter specific round", example = "28")
             @RequestParam(required = false) Integer matchday
-    ) throws IOException, InterruptedException {
+    ) {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getMatchesByCompetition(code, matchday));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
@@ -141,17 +146,20 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> resultsByCompetition(
             @Parameter(description = "Competition code", example = "PL", required = true)
-            @PathVariable String code) throws IOException, InterruptedException {
+            @PathVariable String code) {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getResultsByCompetition(code));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
             }
         });
-
     }
 
     @GetMapping("/competitions/{code}/fixtures")
@@ -171,17 +179,20 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> fixturesByCompetition(
             @Parameter(description = "Competition code", example = "PL", required = true)
-            @PathVariable String code) throws IOException, InterruptedException {
+            @PathVariable String code) {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getFixtures(code));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
             }
         });
-
     }
 
     @GetMapping("/teams")
@@ -213,11 +224,15 @@ public class FootballDataController {
                     )
             )
     })
-    public ResponseEntity<JsonNode> teams() throws IOException, InterruptedException {
+    public ResponseEntity<JsonNode> teams() {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getTeams());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
@@ -242,11 +257,15 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> resultsByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws IOException, InterruptedException {
+            @PathVariable String id) {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getResultsByTeam(id));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
@@ -271,11 +290,15 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> fixturesByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws IOException, InterruptedException {
+            @PathVariable String id) {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getFixturesByTeam(id));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
@@ -314,11 +337,15 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> lastResultByTeam(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws IOException, InterruptedException {
+            @PathVariable String id) {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getLastResultByTeam(id));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
@@ -357,11 +384,15 @@ public class FootballDataController {
     })
     public ResponseEntity<JsonNode> getFutureMatchesByTeamFromNowToEndOfYear(
             @Parameter(description = "Team ID from Football-Data API", example = "86", required = true)
-            @PathVariable String id) throws IOException, InterruptedException {
+            @PathVariable String id) {
         metricsService.incrementRequests();
         return (ResponseEntity<JsonNode>) metricsService.measureLatency(() -> {
             try {
                 return ResponseEntity.ok(service.getFutureMatchesByTeamFromNowToEndOfYear(id));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                metricsService.incrementErrors();
+                return ResponseEntity.internalServerError().body(e.getMessage());
             } catch (Exception e) {
                 metricsService.incrementErrors();
                 return ResponseEntity.internalServerError().body(e.getMessage());
