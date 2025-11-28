@@ -44,7 +44,7 @@ class CacheServiceTest {
         Map<String, Object> result = cacheService.getPrediction("99", "100");
 
         // Assert
-        assertNull(result);
+        assertTrue(result.isEmpty());
     }
 
     @Test
@@ -105,7 +105,7 @@ class CacheServiceTest {
         cacheService.clearAllCaches();
 
         // Assert
-        assertNull(cacheService.getPrediction("86", "65"));
+        assertTrue(cacheService.getPrediction("86", "65").isEmpty());
         assertNull(cacheService.getPerformance("44"));
     }
 
