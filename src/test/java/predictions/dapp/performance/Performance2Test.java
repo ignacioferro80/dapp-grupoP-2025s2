@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.context.ActiveProfiles;
-import predictions.dapp.exceptions.PerformanceDataException;
 import predictions.dapp.model.Consultas;
 import predictions.dapp.repositories.ConsultasRepository;
 import predictions.dapp.service.FootballDataService;
@@ -21,7 +20,6 @@ import predictions.dapp.service.PerformanceService;
 import java.io.IOException;
 import java.util.Optional;
 
-import static java.util.function.Predicate.not;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
