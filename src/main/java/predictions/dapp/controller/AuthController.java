@@ -34,7 +34,6 @@ public class AuthController {
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
-    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final MetricsService metricsService;
 
     public AuthController(UserService userService,
@@ -75,9 +74,6 @@ public class AuthController {
             )
     })
     public ResponseEntity<Object> register(@RequestBody RegisterRequest request) {
-        if (logger.isInfoEnabled()) {
-            logger.info("Received registration request for email: {}", request.getEmail());
-        }
         metricsService.incrementRequests();
         return metricsService.measureLatency(() -> {
             try {

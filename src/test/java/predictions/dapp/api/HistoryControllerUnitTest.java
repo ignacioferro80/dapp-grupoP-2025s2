@@ -14,14 +14,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import predictions.dapp.controller.HistoryController;
 import predictions.dapp.security.JwtUtil;
 import predictions.dapp.service.HistoryService;
 import predictions.dapp.service.MetricsService;
 
 import java.util.concurrent.Callable;
-import java.util.function.Supplier;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;

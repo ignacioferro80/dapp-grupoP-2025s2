@@ -127,8 +127,7 @@ public class PredictionService {
                 }
             }
         } catch (IOException | InterruptedException e) {
-            logger.error("Error obteniendo standings para {}", leagueName, e);
-            throw e;
+            throw new RuntimeException("Error obteniendo standings para: " + leagueName, e);
         }
         return new StandingResult(false, 0, 0, 0);
     }

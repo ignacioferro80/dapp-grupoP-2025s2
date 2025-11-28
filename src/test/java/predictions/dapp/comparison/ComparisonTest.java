@@ -1,6 +1,5 @@
 package predictions.dapp.comparison;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -18,7 +17,6 @@ import predictions.dapp.service.FootballDataService;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -116,7 +114,6 @@ class ComparisonTest {
 
         // Mock data for Manchester City (team2)
         ObjectNode cityMatches = createMockMatchesResponse("65", "Manchester City FC");
-        ObjectNode cityStandings = createMockStandingsResponse("65", "Manchester City FC", 1, 32, 20);
 
         // Mock competitions
         ObjectNode competitions = createMockCompetitionsResponse();

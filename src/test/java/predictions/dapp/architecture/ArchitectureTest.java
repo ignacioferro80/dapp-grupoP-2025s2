@@ -44,10 +44,6 @@ class ArchitectureTest {
     @Test
     void servicesMustBeAnnotatedWithService() {
 
-        var classes = new ClassFileImporter()
-                .withImportOption(new ImportOption.DoNotIncludeTests())
-                .importPackages("predictions.dapp");
-
         ArchRuleDefinition.classes()
                 .that().resideInAPackage("predictions.dapp.service..")
                 .and().haveSimpleNameEndingWith("Service")

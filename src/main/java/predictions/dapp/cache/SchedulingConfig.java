@@ -1,4 +1,4 @@
-package predictions.dapp.cacheUtils;
+package predictions.dapp.cache;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;

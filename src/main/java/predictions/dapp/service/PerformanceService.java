@@ -249,7 +249,6 @@ public class PerformanceService {
 
             logger.info("Saved performance data for userId: {}", userId);
         } catch (Exception e) {
-            logger.error("Error saving performance data", e);
             throw new PerformanceDataException("Failed to save performance data", e);
         }
     }
