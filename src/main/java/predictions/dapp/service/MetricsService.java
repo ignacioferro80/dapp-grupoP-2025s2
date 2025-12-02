@@ -3,7 +3,9 @@ package predictions.dapp.service;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import org.springframework.data.geo.Metric;
 import org.springframework.stereotype.Component;
+import predictions.dapp.exceptions.MetricsException;
 
 @Component
 public class MetricsService {
@@ -39,7 +41,7 @@ public class MetricsService {
         try {
             return predictionLatency.recordCallable(supplier);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new MetricsException("Error al medir la latencia:", e);
         }
     }
 }

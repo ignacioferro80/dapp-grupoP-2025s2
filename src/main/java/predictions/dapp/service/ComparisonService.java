@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import predictions.dapp.exceptions.MetricsException;
 
 import java.io.IOException;
 import java.util.*;
@@ -201,9 +202,9 @@ public class ComparisonService {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Error obteniendo standings para: " + leagueName, e);
+            throw new MetricsException("Error obteniendo standings para: " + leagueName, e);
         } catch (IOException e) {
-            throw new RuntimeException("Error obteniendo standings para: " + leagueName, e);
+            throw new MetricsException("Error obteniendo standings para: " + leagueName, e);
         }
         return new StandingResult(false, 0, 0, 0);
     }
@@ -256,7 +257,7 @@ public class ComparisonService {
         teamMap.put("totalGoals", stats.totalGoals);
         teamMap.put("totalPoints", stats.totalPoints);
         teamMap.put("avgPosition", stats.avgPosition);
-        teamMap.put("goalDifference", stats.goalDifference);
+        teamMap.put(GOAL_DIFFERENCE_KEY, stats.goalDifference); //Acá esta el issue
         teamMap.put("competitions", stats.competitions);
         return teamMap;
     }
