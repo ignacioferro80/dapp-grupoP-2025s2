@@ -121,15 +121,10 @@ class ComparisonTest {
 
     @BeforeEach
     void setUp() {
-        // Mock cache service to return null (no cached data)
-        // when(cacheService.getComparison(anyString(), anyString())).thenReturn(null);
 
-        // Initialize controller with mocked services
+
         comparisonController = new ComparisonController(comparisonService, metricsService);
 
-        // Setup default metrics service behavior
-        // doNothing().when(metricsService).incrementRequests();
-        // doNothing().when(metricsService).incrementErrors();
     }
 
     // ==================== SERVICE LAYER TESTS ====================

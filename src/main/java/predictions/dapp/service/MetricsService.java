@@ -3,7 +3,6 @@ package predictions.dapp.service;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.springframework.data.geo.Metric;
 import org.springframework.stereotype.Component;
 import predictions.dapp.exceptions.MetricsException;
 

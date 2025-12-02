@@ -28,12 +28,6 @@ public class ComparisonService {
     public Map<String, Object> compareTeams(String teamId1, String teamId2)
             throws IOException, InterruptedException {
 
-        // Check cache first
-        // Map<String, Object> cachedComparison = cacheService.getComparison(teamId1, teamId2);
-        //if (cachedComparison != null) {
-        //    logger.info("Returning cached comparison for teams {} and {}", teamId1, teamId2);
-        //    return cachedComparison;
-        // }
 
         // Obtain stats for both teams - EXACTLY like PredictionService
         TeamComparisonStats stats1 = getTeamComparisonStats(teamId1);
