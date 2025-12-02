@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import predictions.dapp.exceptions.MetricsException;
 import predictions.dapp.model.Consultas;
 import predictions.dapp.repositories.ConsultasRepository;
 
@@ -126,8 +127,11 @@ public class PredictionService {
                     );
                 }
             }
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Error obteniendo standings para: " + leagueName, e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new MetricsException("Error obteniendo standings para: " + leagueName, e);
+        } catch (IOException e) {
+            throw new MetricsException("Error obteniendo standings para: " + leagueName, e);
         }
         return new StandingResult(false, 0, 0, 0);
     }

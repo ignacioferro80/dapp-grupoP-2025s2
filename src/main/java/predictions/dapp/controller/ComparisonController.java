@@ -79,6 +79,11 @@ public class ComparisonController {
                 try {
                     Map<String, Object> comparison = comparisonService.compareTeams(teamId1, teamId2);
                     return ResponseEntity.ok(comparison);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    metricsService.incrementErrors();
+                    return ResponseEntity.status(500)
+                            .body(Map.of("error", "Request interrupted"));
                 } catch (Exception e) {
                     metricsService.incrementErrors();
                     return ResponseEntity.internalServerError().body(e.getMessage());

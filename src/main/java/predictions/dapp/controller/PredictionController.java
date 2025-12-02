@@ -95,6 +95,10 @@ public class PredictionController {
                 try {
                     Map<String, Object> prediction = predictionService.predictWinner(teamId1, teamId2, userId);
                     return ResponseEntity.ok(prediction);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    metricsService.incrementErrors();
+                    return ResponseEntity.internalServerError().body(e.getMessage());
                 } catch (Exception e) {
                     metricsService.incrementErrors();
                     return ResponseEntity.internalServerError().body(e.getMessage());

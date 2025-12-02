@@ -199,7 +199,10 @@ public class ComparisonService {
                     );
                 }
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Error obteniendo standings para: " + leagueName, e);
+        } catch (IOException e) {
             throw new RuntimeException("Error obteniendo standings para: " + leagueName, e);
         }
         return new StandingResult(false, 0, 0, 0);

@@ -114,18 +114,7 @@ public class PerformanceController {
                 if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
                     String email = auth.getName();
                     Long userId = jwtUtil.extractUserId(email);
-
-                    try {
-                        ObjectNode response = performanceService.handlePerformance(userId, playerId);
-                        return ResponseEntity.ok(response);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return ResponseEntity.status(500)
-                                .body(Map.of("error", "Request interrupted: " + e.getMessage()));
-                    } catch (Exception e) {
-                        return ResponseEntity.status(500)
-                                .body(Map.of("error", "Failed to fetch performance data: " + e.getMessage()));
-                    }
+                    return fetchPerformanceData(userId, playerId);
                 }
                 return ResponseEntity.ok(Map.of("message", "User not logged in"));
             } catch (Exception e) {
@@ -133,5 +122,19 @@ public class PerformanceController {
                 return ResponseEntity.internalServerError().body(e.getMessage());
             }
         });
+    }
+
+    private ResponseEntity<Object> fetchPerformanceData(Long userId, String playerId) {
+        try {
+            ObjectNode response = performanceService.handlePerformance(userId, playerId);
+            return ResponseEntity.ok(response);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Request interrupted: " + e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Failed to fetch performance data: " + e.getMessage()));
+        }
     }
 }
