@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.context.ActiveProfiles;
 import predictions.dapp.model.Consultas;
 import predictions.dapp.repositories.ConsultasRepository;
+import predictions.dapp.service.CacheService;
 import predictions.dapp.service.FootballDataService;
 import predictions.dapp.service.PredictionService;
 
@@ -33,6 +34,9 @@ class Predictions2Test {
 
     @Mock
     private ConsultasRepository consultasRepository;
+
+    @Mock
+    private CacheService cacheService;
 
     @InjectMocks
     private PredictionService predictionService;
@@ -99,11 +103,12 @@ class Predictions2Test {
 
     @BeforeEach
     void setUp() {
+        // Mock cache to always return null (cache miss) by default
+        when(cacheService.getPrediction(anyString(), anyString())).thenReturn(null);
+
         when(consultasRepository.findByUserId(anyLong())).thenReturn(Optional.of(new Consultas()));
         when(consultasRepository.save(any(Consultas.class))).thenAnswer(i -> i.getArguments()[0]);
     }
-
-
 
     @Tag("unit")
     @Test
@@ -120,9 +125,9 @@ class Predictions2Test {
 
         assertNotNull(result);
         verify(footballDataService, never()).getStandings(anyString());
+        verify(cacheService).getPrediction("86", "65");
+        verify(cacheService).cachePrediction(eq("86"), eq("65"), any());
     }
-
-
 
     @Tag("unit")
     @Test
@@ -142,5 +147,42 @@ class Predictions2Test {
 
         assertNotNull(result);
         assertTrue(result.containsKey("prediction"));
+        verify(cacheService).getPrediction("86", "86");
+        verify(cacheService).cachePrediction(eq("86"), eq("86"), any());
+    }
+
+    @Tag("unit")
+    @Test
+    void testPredictWinner_CachedResult_ReturnsFromCache() throws IOException, InterruptedException {
+        Long userId = 20L;
+
+        // Create cached prediction
+        Map<String, Object> cachedPrediction = Map.of(
+                "probabilidad_Real Madrid", "65.00%",
+                "probabilidad_Barcelona", "35.00%",
+                "prediction", "Real Madrid con 65.00%"
+        );
+
+        // Mock cache to return the cached prediction
+        when(cacheService.getPrediction("86", "81")).thenReturn(cachedPrediction);
+
+        Map<String, Object> result = predictionService.predictWinner("86", "81", userId);
+
+        assertNotNull(result);
+        assertEquals(cachedPrediction, result);
+
+        // Verify cache was checked
+        verify(cacheService).getPrediction("86", "81");
+
+        // Verify API services were NOT called (because we used cache)
+        verify(footballDataService, never()).getLastMatchesFinished(anyString(), anyInt());
+        verify(footballDataService, never()).getCompetitions();
+        verify(footballDataService, never()).getStandings(anyString());
+
+        // Verify cache was NOT updated (already cached)
+        verify(cacheService, never()).cachePrediction(anyString(), anyString(), any());
+
+        // Verify data was still saved to user history
+        verify(consultasRepository).save(any(Consultas.class));
     }
 }

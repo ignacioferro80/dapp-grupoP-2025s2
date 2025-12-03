@@ -28,6 +28,9 @@ class PerformanceServiceTest {
     @Mock
     private FootballDataService footballDataService;
 
+    @Mock
+    private CacheService cacheService;
+
     @InjectMocks
     private PerformanceService performanceService;
 
@@ -87,6 +90,9 @@ class PerformanceServiceTest {
         JsonNode competitionsNode = mapper.readTree(mockCompetitionsJson);
         JsonNode topScorersNode = mapper.readTree(mockTopScorersJson);
 
+        // Mock cache to return null (cache miss)
+        when(cacheService.getPerformance(anyString())).thenReturn(null);
+
         when(footballDataService.getCompetitions()).thenReturn(competitionsNode);
         when(footballDataService.getTopScorersByCompetitionId(anyString(), anyInt(), anyString()))
                 .thenReturn(topScorersNode);
@@ -103,6 +109,10 @@ class PerformanceServiceTest {
         assertEquals(25, result.get("goals").asInt());
         assertEquals(30, result.get("matches").asInt());
         assertTrue(result.has("performance"));
+
+        // Verify cache was checked and updated
+        verify(cacheService).getPerformance("44");
+        verify(cacheService).cachePerformance(eq("44"), any(ObjectNode.class));
         verify(consultasRepository).save(any(Consultas.class));
     }
 
@@ -112,6 +122,9 @@ class PerformanceServiceTest {
         JsonNode competitionsNode = mapper.readTree(mockCompetitionsJson);
         JsonNode emptyScorersJson = mapper.readTree("{\"scorers\": []}");
         JsonNode playerNode = mapper.readTree(mockPlayerJson);
+
+        // Mock cache to return null (cache miss)
+        when(cacheService.getPerformance(anyString())).thenReturn(null);
 
         when(footballDataService.getCompetitions()).thenReturn(competitionsNode);
         when(footballDataService.getTopScorersByCompetitionId(anyString(), anyInt(), anyString()))
@@ -128,13 +141,46 @@ class PerformanceServiceTest {
         assertEquals(44, result.get("id").asInt());
         assertEquals("Harry Kane", result.get("name").asText());
         assertTrue(result.get("performance").asText().contains("below average"));
+
         verify(footballDataService).getPlayerById("44");
+        verify(cacheService).getPerformance("44");
+        verify(cacheService).cachePerformance(eq("44"), any(ObjectNode.class));
+        verify(consultasRepository).save(any(Consultas.class));
+    }
+
+    @Test
+    void handlePerformance_CachedData_ReturnsFromCache() throws IOException, InterruptedException {
+        // Arrange
+        ObjectNode cachedData = mapper.createObjectNode();
+        cachedData.put("id", 44);
+        cachedData.put("name", "Harry Kane");
+        cachedData.put("goals", 25);
+        cachedData.put("matches", 30);
+        cachedData.put("performance", 0.83);
+
+        when(cacheService.getPerformance(anyString())).thenReturn(cachedData);
+        when(consultasRepository.findByUserId(anyLong())).thenReturn(Optional.of(new Consultas()));
+        when(consultasRepository.save(any(Consultas.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        ObjectNode result = performanceService.handlePerformance(1L, "44");
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(44, result.get("id").asInt());
+        assertEquals("Harry Kane", result.get("name").asText());
+
+        // Verify cache was used and API was NOT called
+        verify(cacheService).getPerformance("44");
+        verify(footballDataService, never()).getCompetitions();
+        verify(footballDataService, never()).getTopScorersByCompetitionId(anyString(), anyInt(), anyString());
         verify(consultasRepository).save(any(Consultas.class));
     }
 
     @Test
     void handlePerformance_ApiException_ThrowsException() throws IOException, InterruptedException {
         // Arrange
+        when(cacheService.getPerformance(anyString())).thenReturn(null);
         when(footballDataService.getCompetitions()).thenThrow(new IOException("API Error"));
 
         // Act & Assert
@@ -149,6 +195,7 @@ class PerformanceServiceTest {
         JsonNode competitionsNode = mapper.readTree(mockCompetitionsJson);
         JsonNode topScorersNode = mapper.readTree(mockTopScorersJson);
 
+        when(cacheService.getPerformance(anyString())).thenReturn(null);
         when(footballDataService.getCompetitions()).thenReturn(competitionsNode);
         when(footballDataService.getTopScorersByCompetitionId(anyString(), anyInt(), anyString()))
                 .thenReturn(topScorersNode);
@@ -163,5 +210,6 @@ class PerformanceServiceTest {
         verify(consultasRepository).save(argThat(consulta ->
                 consulta.getUserId().equals(1L) && consulta.getRendimiento() != null
         ));
+        verify(cacheService).cachePerformance(eq("44"), any(ObjectNode.class));
     }
 }
