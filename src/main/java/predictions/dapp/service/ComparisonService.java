@@ -116,7 +116,10 @@ public class ComparisonService {
     private StandingsData processLeagueStandings(Set<String> leagues, String teamId)
             throws IOException, InterruptedException {
 
-        int totalPoints = 0, totalPos = 0, totalGD = 0, count = 0;
+        int totalPoints = 0;
+        int totalPos = 0;
+        int totalGD = 0;
+        int count = 0;
 
         for (String league : leagues) {
             StandingResult res = evaluateLeague(league, teamId);
@@ -183,8 +186,11 @@ public class ComparisonService {
         JsonNode matches = safeArray(matchesResponse, "matches");
         if (matches == null) return;
 
-        int won = 0, lost = 0, draw = 0;
-        int scored = 0, conceded = 0;
+        int won = 0;
+        int lost = 0;
+        int draw = 0;
+        int scored = 0;
+        int conceded = 0;
         int played = 0;
         String name = "";
 
@@ -270,9 +276,15 @@ public class ComparisonService {
     private static class TeamComparisonStats {
         String id;
         String teamName = "";
-        int matchesPlayed, wonGames, lostGames, drawnGames;
-        int goalsScored, goalsConceded;
-        int totalPoints, totalGoalDiff, leagueCount;
+        int matchesPlayed;
+        int wonGames;
+        int lostGames ;
+        int drawnGames;
+        int goalsScored;
+        int goalsConceded;
+        int totalPoints;
+        int totalGoalDiff;
+        int leagueCount;
         double avgPosition = 20;
         List<String> competitions = new ArrayList<>();
     }
