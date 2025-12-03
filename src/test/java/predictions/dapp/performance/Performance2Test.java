@@ -1,6 +1,5 @@
 package predictions.dapp.performance;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -11,14 +10,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
-import predictions.dapp.model.Consultas;
-import predictions.dapp.repositories.ConsultasRepository;
-import predictions.dapp.service.FootballDataService;
+import predictions.dapp.controller.PerformanceController;
+import predictions.dapp.security.JwtUtil;
+import predictions.dapp.service.MetricsService;
 import predictions.dapp.service.PerformanceService;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.util.Map;
+import java.util.concurrent.Callable;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -29,489 +34,722 @@ import static org.mockito.Mockito.*;
 class Performance2Test {
 
     @Mock
-    private ConsultasRepository consultasRepository;
+    private PerformanceService performanceService;
 
     @Mock
-    private FootballDataService footballDataService;
+    private JwtUtil jwtUtil;
+
+    @Mock
+    private MetricsService metricsService;
+
+    @Mock
+    private SecurityContext securityContext;
+
+    @Mock
+    private Authentication authentication;
 
     @InjectMocks
-    private PerformanceService performanceService;
+    private PerformanceController performanceController;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    private ObjectNode createMockCompetitionsResponse() {
-        ObjectNode response = mapper.createObjectNode();
-        ArrayNode competitions = response.putArray("competitions");
-
-        // Priority competitions
-        competitions.addObject().put("id", "2019").put("name", "Serie A");
-        competitions.addObject().put("id", "2021").put("name", "Premier League");
-        competitions.addObject().put("id", "2014").put("name", "La Liga");
-        competitions.addObject().put("id", "2015").put("name", "Ligue 1");
-        competitions.addObject().put("id", "2002").put("name", "Bundesliga");
-
-        // Other competitions
-        competitions.addObject().put("id", "2003").put("name", "Eredivisie");
-        competitions.addObject().put("id", "2017").put("name", "Primeira Liga");
-
-        return response;
-    }
-
-    private ObjectNode createMockTopScorersResponse(String playerId, boolean includePlayer) {
-        ObjectNode response = mapper.createObjectNode();
-        ArrayNode scorers = response.putArray("scorers");
-
-        if (includePlayer) {
-            ObjectNode scorer = scorers.addObject();
-            ObjectNode player = scorer.putObject("player");
-            player.put("id", Integer.parseInt(playerId));
-            player.put("name", "Test Player");
-
-            ObjectNode team = scorer.putObject("team");
-            team.put("name", "Test Team FC");
-
-            scorer.put("goals", 15);
-            scorer.put("playedMatches", 12);
-        }
-
-        // Add other scorers
-        for (int i = 1; i <= 5; i++) {
-            ObjectNode scorer = scorers.addObject();
-            scorer.putObject("player").put("id", 10000 + i).put("name", "Other Player " + i);
-            scorer.putObject("team").put("name", "Team " + i);
-            scorer.put("goals", 20 - i);
-            scorer.put("playedMatches", 10);
-        }
-
-        return response;
-    }
-
-    private ObjectNode createMockPlayerResponse(String playerId) {
-        ObjectNode player = mapper.createObjectNode();
-        player.put("id", Integer.parseInt(playerId));
-        player.put("name", "Test Player");
-        player.put("nationality", "England");
-
-        ObjectNode currentTeam = player.putObject("currentTeam");
-        currentTeam.put("name", "Test Team FC");
-
-        return player;
-    }
-
     @BeforeEach
     void setUp() {
-        when(consultasRepository.findByUserId(anyLong())).thenReturn(Optional.of(new Consultas()));
-        when(consultasRepository.save(any(Consultas.class))).thenAnswer(i -> i.getArguments()[0]);
+        SecurityContextHolder.setContext(securityContext);
+
+        // Mock metricsService to execute the callable immediately
+        when(metricsService.measureLatency(any())).thenAnswer(invocation -> {
+            Object callable = invocation.getArgument(0);
+            return ((Callable<?>) callable).call();
+        });
     }
 
-    // ==================== SUCCESS SCENARIOS ====================
+    // ==================== AUTHENTICATED USER TESTS ====================
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_PlayerFoundInPriorityCompetition() throws IOException, InterruptedException {
+    void testPerformance_AuthenticatedUser_Success() throws Exception {
+        // Arrange
+        String playerId = "44";
         Long userId = 1L;
-        String playerId = "44";
+        String email = "test@example.com";
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024"))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 44);
+        expectedResponse.put("name", "Harry Kane");
+        expectedResponse.put("team", "FC Bayern MÃ¼nchen");
+        expectedResponse.put("goals", 12);
+        expectedResponse.put("matches", 10);
+        expectedResponse.put("performance", 1.2);
+        expectedResponse.put("competition", "Bundesliga");
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
 
-        assertNotNull(result);
-        assertEquals(44, result.get("id").asInt());
-        assertEquals("Test Player", result.get("name").asText());
-        assertEquals("Test Team FC", result.get("team").asText());
-        assertEquals(15, result.get("goals").asInt());
-        assertEquals(12, result.get("matches").asInt());
-        assertEquals("Serie A", result.get("competition").asText());
-        verify(consultasRepository, times(1)).save(any(Consultas.class));
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof ObjectNode);
+        ObjectNode body = (ObjectNode) response.getBody();
+        assertEquals(44, body.get("id").asInt());
+        assertEquals("Harry Kane", body.get("name").asText());
+        assertEquals("Bundesliga", body.get("competition").asText());
+
+        verify(metricsService).incrementRequests();
+        verify(metricsService).measureLatency(any());
+        verify(jwtUtil).extractUserId(email);
+        verify(performanceService).handlePerformance(userId, playerId);
+        verify(metricsService, never()).incrementErrors();
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_PlayerFoundInOtherCompetition() throws IOException, InterruptedException {
-        Long userId = 2L;
-        String playerId = "99";
-
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-
-        // Not found in priority competitions
-        when(footballDataService.getTopScorersByCompetitionId(eq("2019"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
-        when(footballDataService.getTopScorersByCompetitionId(eq("2021"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
-        when(footballDataService.getTopScorersByCompetitionId(eq("2014"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
-        when(footballDataService.getTopScorersByCompetitionId(eq("2015"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
-        when(footballDataService.getTopScorersByCompetitionId(eq("2002"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
-
-        // Found in other competition
-        when(footballDataService.getTopScorersByCompetitionId(eq("2003"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
-
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
-
-        assertNotNull(result);
-        assertEquals("Eredivisie", result.get("competition").asText());
-    }
-
-    @Tag("unit")
-    @Test
-    void testHandlePerformance_PlayerNotFound_BasicInfoReturned() throws IOException, InterruptedException {
-        Long userId = 3L;
+    void testPerformance_AuthenticatedUser_PlayerNotInTopScorers() throws Exception {
+        // Arrange
         String playerId = "12345";
+        Long userId = 2L;
+        String email = "user@example.com";
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 12345);
+        expectedResponse.put("name", "John Smith");
+        expectedResponse.put("team", "Example FC");
+        expectedResponse.put("performance", "Player 12345 John Smith performance is below average top players");
 
-        // Not found in any competition
-        when(footballDataService.getTopScorersByCompetitionId(anyString(), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
 
-        when(footballDataService.getPlayerById(playerId)).thenReturn(createMockPlayerResponse(playerId));
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ObjectNode body = (ObjectNode) response.getBody();
+        assertTrue(body.get("performance").asText().contains("below average"));
 
-        assertNotNull(result);
-        assertEquals(12345, result.get("id").asInt());
-        assertTrue(result.get("performance").asText().contains("below average"));
-        verify(footballDataService).getPlayerById(playerId);
+        verify(performanceService).handlePerformance(userId, playerId);
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_PlayerWithNoCurrentTeam() throws IOException, InterruptedException {
-        Long userId = 4L;
-        String playerId = "999";
-
-        ObjectNode playerWithoutTeam = mapper.createObjectNode();
-        playerWithoutTeam.put("id", 999);
-        playerWithoutTeam.put("name", "Free Agent Player");
-
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId(anyString(), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
-        when(footballDataService.getPlayerById(playerId)).thenReturn(playerWithoutTeam);
-
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
-
-        assertNotNull(result);
-        assertEquals("Unknown", result.get("team").asText());
-    }
-
-    @Tag("unit")
-    @Test
-    void testHandlePerformance_HighPerformancePlayer() throws IOException, InterruptedException {
-        Long userId = 5L;
+    void testPerformance_AuthenticatedUser_DifferentPlayerId() throws Exception {
+        // Arrange
         String playerId = "777";
+        Long userId = 3L;
+        String email = "another@example.com";
 
-        ObjectNode response = mapper.createObjectNode();
-        ArrayNode scorers = response.putArray("scorers");
-        ObjectNode scorer = scorers.addObject();
-        scorer.putObject("player").put("id", 777).put("name", "Super Striker");
-        scorer.putObject("team").put("name", "Goals FC");
-        scorer.put("goals", 30);
-        scorer.put("playedMatches", 15);
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 777);
+        expectedResponse.put("name", "Test Player");
+        expectedResponse.put("goals", 20);
+        expectedResponse.put("matches", 15);
+        expectedResponse.put("performance", 1.33);
+        expectedResponse.put("competition", "Premier League");
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024")).thenReturn(response);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        assertNotNull(result);
-        assertEquals(30, result.get("goals").asInt());
-        assertEquals(15, result.get("matches").asInt());
-        assertEquals(2.0, result.get("performance").asDouble(), 0.01);
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(performanceService).handlePerformance(userId, playerId);
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_PlayerWithZeroGoals() throws IOException, InterruptedException {
-        Long userId = 6L;
+    void testPerformance_AuthenticatedUser_PlayerWithZeroGoals() throws Exception {
+        // Arrange
         String playerId = "888";
+        Long userId = 4L;
+        String email = "test@example.com";
 
-        ObjectNode response = mapper.createObjectNode();
-        ArrayNode scorers = response.putArray("scorers");
-        ObjectNode scorer = scorers.addObject();
-        scorer.putObject("player").put("id", 888).put("name", "Defender Player");
-        scorer.putObject("team").put("name", "Defense FC");
-        scorer.put("goals", 0);
-        scorer.put("playedMatches", 20);
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 888);
+        expectedResponse.put("name", "Defender Player");
+        expectedResponse.put("team", "Defense FC");
+        expectedResponse.put("goals", 0);
+        expectedResponse.put("matches", 20);
+        expectedResponse.put("performance", 0.0);
+        expectedResponse.put("competition", "Serie A");
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024")).thenReturn(response);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        assertNotNull(result);
-        assertEquals(0, result.get("goals").asInt());
-        assertEquals(0.0, result.get("performance").asDouble(), 0.01);
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ObjectNode body = (ObjectNode) response.getBody();
+        assertEquals(0, body.get("goals").asInt());
+        assertEquals(0.0, body.get("performance").asDouble(), 0.01);
+    }
+
+    // ==================== UNAUTHENTICATED USER TESTS ====================
+
+    @Tag("unit")
+    @Test
+    void testPerformance_UnauthenticatedUser_NullAuthentication() throws IOException, InterruptedException {
+        // Arrange
+        String playerId = "44";
+        when(securityContext.getAuthentication()).thenReturn(null);
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals("User not logged in", body.get("message"));
+
+        verify(metricsService).incrementRequests();
+        verify(performanceService, never()).handlePerformance(anyLong(), anyString());
+        verify(metricsService, never()).incrementErrors();
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_SavesMultiplePerformanceRecords() throws IOException, InterruptedException {
-        Long userId = 7L;
+    void testPerformance_UnauthenticatedUser_NotAuthenticated() throws IOException, InterruptedException {
+        // Arrange
         String playerId = "44";
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(false);
 
-        Consultas existingConsulta = new Consultas();
-        existingConsulta.setId(1L);
-        existingConsulta.setUserId(userId);
-        ArrayNode existingPerformance = mapper.createArrayNode();
-        existingPerformance.addObject().put("id", 123).put("name", "Old Record");
-        existingConsulta.setRendimiento(mapper.writeValueAsString(existingPerformance));
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        when(consultasRepository.findByUserId(userId)).thenReturn(Optional.of(existingConsulta));
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024"))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals("User not logged in", body.get("message"));
 
-        performanceService.handlePerformance(userId, playerId);
-
-        verify(consultasRepository).save(argThat(consulta -> {
-            try {
-                JsonNode performance = mapper.readTree(consulta.getRendimiento());
-                return performance.isArray() && performance.size() == 2;
-            } catch (Exception e) {
-                return false;
-            }
-        }));
+        verify(performanceService, never()).handlePerformance(anyLong(), anyString());
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_CreatesNewConsulta() throws IOException, InterruptedException {
-        Long userId = 8L;
+    void testPerformance_UnauthenticatedUser_AnonymousUser() throws IOException, InterruptedException {
+        // Arrange
         String playerId = "44";
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn("anonymousUser");
 
-        when(consultasRepository.findByUserId(userId)).thenReturn(Optional.empty());
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024"))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        performanceService.handlePerformance(userId, playerId);
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals("User not logged in", body.get("message"));
 
-        verify(consultasRepository).save(argThat(consulta ->
-                consulta.getUserId().equals(userId) && consulta.getRendimiento() != null
-        ));
+        verify(performanceService, never()).handlePerformance(anyLong(), anyString());
     }
 
     // ==================== ERROR HANDLING TESTS ====================
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_RateLimitError() throws IOException, InterruptedException {
-        Long userId = 11L;
+    void testPerformance_PerformanceServiceThrowsInterruptedException() throws Exception {
+        // Arrange
         String playerId = "44";
+        Long userId = 1L;
+        String email = "test@example.com";
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId(eq("2019"), anyInt(), anyString()))
-                .thenThrow(new IOException("HTTP 429 Rate limit exceeded"));
-        when(footballDataService.getTopScorersByCompetitionId(eq("2021"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId))
+                .thenThrow(new InterruptedException("Request interrupted"));
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        assertNotNull(result);
-        assertEquals("Premier League", result.get("competition").asText());
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Request interrupted"));
+
+        verify(metricsService).incrementRequests();
+        verify(metricsService, never()).incrementErrors();
     }
-
-
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_LegacySingleObjectPerformance() throws IOException, InterruptedException {
-        Long userId = 14L;
+    void testPerformance_PerformanceServiceThrowsIOException() throws Exception {
+        // Arrange
         String playerId = "44";
+        Long userId = 1L;
+        String email = "test@example.com";
 
-        Consultas legacyConsulta = new Consultas();
-        legacyConsulta.setId(1L);
-        legacyConsulta.setUserId(userId);
-        ObjectNode singlePerformance = mapper.createObjectNode();
-        singlePerformance.put("id", 999);
-        singlePerformance.put("name", "Old Record");
-        legacyConsulta.setRendimiento(mapper.writeValueAsString(singlePerformance));
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId))
+                .thenThrow(new IOException("Failed to fetch competitions"));
 
-        when(consultasRepository.findByUserId(userId)).thenReturn(Optional.of(legacyConsulta));
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024"))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        performanceService.handlePerformance(userId, playerId);
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Failed to fetch performance data"));
+        assertTrue(body.get("error").toString().contains("Failed to fetch competitions"));
+    }
 
-        verify(consultasRepository).save(argThat(consulta -> {
-            try {
-                JsonNode performance = mapper.readTree(consulta.getRendimiento());
-                return performance.isArray() && performance.size() == 2;
-            } catch (Exception e) {
-                return false;
-            }
-        }));
+    @Tag("unit")
+    @Test
+    void testPerformance_PerformanceServiceThrowsGenericException() throws Exception {
+        // Arrange
+        String playerId = "44";
+        Long userId = 1L;
+        String email = "test@example.com";
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId))
+                .thenThrow(new RuntimeException("Database connection failed"));
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Failed to fetch performance data"));
+        assertTrue(body.get("error").toString().contains("Database connection failed"));
+
+        verify(metricsService).incrementRequests();
+        verify(metricsService, never()).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_JwtUtilThrowsException() throws IOException, InterruptedException {
+        // Arrange
+        String playerId = "44";
+        String email = "test@example.com";
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenThrow(new RuntimeException("Invalid JWT token"));
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody() instanceof String);
+        assertTrue(response.getBody().toString().contains("Invalid JWT token"));
+
+        verify(metricsService).incrementRequests();
+        verify(metricsService).incrementErrors();
+        verify(performanceService, never()).handlePerformance(anyLong(), anyString());
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_NullPointerExceptionInAuthentication() {
+        // Arrange
+        String playerId = "44";
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(null);
+        // Mock jwtUtil to throw exception when passed null
+        when(jwtUtil.extractUserId(null)).thenThrow(new NullPointerException("Email cannot be null"));
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_PerformanceDataExceptionFromService() throws Exception {
+        // Arrange
+        String playerId = "44";
+        Long userId = 1L;
+        String email = "test@example.com";
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId))
+                .thenThrow(new predictions.dapp.exceptions.PerformanceDataException(
+                        "Failed to save performance data",
+                        new IOException("Database error")
+                ));
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Failed to fetch performance data"));
     }
 
     // ==================== EDGE CASES ====================
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_EmptyCompetitionsList() throws IOException, InterruptedException {
-        Long userId = 15L;
+    void testPerformance_EmptyPlayerId() throws Exception {
+        // Arrange
+        String playerId = "";
+        Long userId = 1L;
+        String email = "test@example.com";
+
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("error", "Invalid player ID");
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(performanceService).handlePerformance(userId, playerId);
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_NonNumericPlayerId() throws Exception {
+        // Arrange
+        String playerId = "abc123";
+        Long userId = 1L;
+        String email = "test@example.com";
+
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("message", "Player processed");
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(performanceService).handlePerformance(userId, playerId);
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_VeryLargePlayerId() throws Exception {
+        // Arrange
+        String playerId = "999999999";
+        Long userId = 1L;
+        String email = "test@example.com";
+
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 999999999);
+        expectedResponse.put("name", "Unknown Player");
+        expectedResponse.put("team", "Unknown");
+        expectedResponse.put("performance", "Player 999999999 Unknown Player performance is below average top players");
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(performanceService).handlePerformance(userId, playerId);
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_MultipleCallsWithSameUser() throws Exception {
+        // Arrange
+        String playerId1 = "44";
+        String playerId2 = "77";
+        Long userId = 1L;
+        String email = "test@example.com";
+
+        ObjectNode response1 = mapper.createObjectNode();
+        response1.put("id", 44);
+        response1.put("name", "Player One");
+        response1.put("competition", "Bundesliga");
+
+        ObjectNode response2 = mapper.createObjectNode();
+        response2.put("id", 77);
+        response2.put("name", "Player Two");
+        response2.put("competition", "Premier League");
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId1)).thenReturn(response1);
+        when(performanceService.handlePerformance(userId, playerId2)).thenReturn(response2);
+
+        // Act
+        ResponseEntity<Object> result1 = performanceController.performance(playerId1);
+        ResponseEntity<Object> result2 = performanceController.performance(playerId2);
+
+        // Assert
+        assertNotNull(result1);
+        assertNotNull(result2);
+        assertEquals(HttpStatus.OK, result1.getStatusCode());
+        assertEquals(HttpStatus.OK, result2.getStatusCode());
+        verify(metricsService, times(2)).incrementRequests();
+        verify(performanceService).handlePerformance(userId, playerId1);
+        verify(performanceService).handlePerformance(userId, playerId2);
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_SpecialCharactersInEmail() throws Exception {
+        // Arrange
+        String playerId = "44";
+        Long userId = 1L;
+        String email = "test+special@example.com";
+
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 44);
+        expectedResponse.put("name", "Test Player");
+        expectedResponse.put("competition", "Serie A");
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
+
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(jwtUtil).extractUserId(email);
+        verify(performanceService).handlePerformance(userId, playerId);
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_MetricsServiceVerification() throws Exception {
+        // Arrange
+        String playerId = "44";
+        Long userId = 1L;
+        String email = "test@example.com";
+
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 44);
+
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
+
+        // Act
+        performanceController.performance(playerId);
+
+        // Assert
+        verify(metricsService, times(1)).incrementRequests();
+        verify(metricsService, times(1)).measureLatency(any());
+        verify(metricsService, never()).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformance_NullEmailFromAuthentication() {
+        // Arrange
         String playerId = "44";
 
-        ObjectNode emptyCompetitions = mapper.createObjectNode();
-        emptyCompetitions.putArray("competitions");
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn("test@example.com");
+        when(authentication.getName()).thenReturn(null);
+        // Mock jwtUtil to throw exception when passed null
+        when(jwtUtil.extractUserId(null)).thenThrow(new NullPointerException("Email cannot be null"));
 
-        when(footballDataService.getCompetitions()).thenReturn(emptyCompetitions);
-        when(footballDataService.getPlayerById(playerId)).thenReturn(createMockPlayerResponse(playerId));
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
-
-        assertNotNull(result);
-        assertTrue(result.get("performance").asText().contains("below average"));
-        verify(footballDataService, never()).getTopScorersByCompetitionId(anyString(), anyInt(), anyString());
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        verify(metricsService).incrementErrors();
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_EmptyScorersInAllCompetitions() throws IOException, InterruptedException {
-        Long userId = 16L;
-        String playerId = "44";
+    void testPerformance_PlayerWithUnknownTeam() throws Exception {
+        // Arrange
+        String playerId = "999";
+        Long userId = 5L;
+        String email = "test@example.com";
 
-        ObjectNode emptyScorers = mapper.createObjectNode();
-        emptyScorers.putArray("scorers");
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 999);
+        expectedResponse.put("name", "Free Agent Player");
+        expectedResponse.put("team", "Unknown");
+        expectedResponse.put("performance", "Player 999 Free Agent Player performance is below average top players");
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId(anyString(), anyInt(), anyString()))
-                .thenReturn(emptyScorers);
-        when(footballDataService.getPlayerById(playerId)).thenReturn(createMockPlayerResponse(playerId));
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        assertNotNull(result);
-        assertTrue(result.get("performance").asText().contains("below average"));
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ObjectNode body = (ObjectNode) response.getBody();
+        assertEquals("Unknown", body.get("team").asText());
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_PlayerWithSingleMatch() throws IOException, InterruptedException {
-        Long userId = 17L;
-        String playerId = "555";
+    void testPerformance_HighPerformancePlayer() throws Exception {
+        // Arrange
+        String playerId = "777";
+        Long userId = 6L;
+        String email = "test@example.com";
 
-        ObjectNode response = mapper.createObjectNode();
-        ArrayNode scorers = response.putArray("scorers");
-        ObjectNode scorer = scorers.addObject();
-        scorer.putObject("player").put("id", 555).put("name", "New Player");
-        scorer.putObject("team").put("name", "New Team");
-        scorer.put("goals", 1);
-        scorer.put("playedMatches", 1);
+        ObjectNode expectedResponse = mapper.createObjectNode();
+        expectedResponse.put("id", 777);
+        expectedResponse.put("name", "Super Striker");
+        expectedResponse.put("team", "Goals FC");
+        expectedResponse.put("goals", 30);
+        expectedResponse.put("matches", 15);
+        expectedResponse.put("performance", 2.0);
+        expectedResponse.put("competition", "Serie A");
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024")).thenReturn(response);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
+        when(performanceService.handlePerformance(userId, playerId)).thenReturn(expectedResponse);
 
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
+        // Act
+        ResponseEntity<Object> response = performanceController.performance(playerId);
 
-        assertNotNull(result);
-        assertEquals(1.0, result.get("performance").asDouble(), 0.01);
-    }
-
-
-    @Tag("unit")
-    @Test
-    void testHandlePerformance_NoTeamInScorerData() throws IOException, InterruptedException {
-        Long userId = 19L;
-        String playerId = "444";
-
-        ObjectNode response = mapper.createObjectNode();
-        ArrayNode scorers = response.putArray("scorers");
-        ObjectNode scorer = scorers.addObject();
-        scorer.putObject("player").put("id", 444).put("name", "No Team Player");
-        scorer.put("goals", 5);
-        scorer.put("playedMatches", 10);
-
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024")).thenReturn(response);
-
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
-
-        assertNotNull(result);
-        assertFalse(result.has("team"));
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ObjectNode body = (ObjectNode) response.getBody();
+        assertEquals(30, body.get("goals").asInt());
+        assertEquals(2.0, body.get("performance").asDouble(), 0.01);
     }
 
     @Tag("unit")
     @Test
-    void testHandlePerformance_MixedCompetitionErrors() throws IOException, InterruptedException {
-        Long userId = 20L;
-        String playerId = "333";
+    void testPerformance_AllPriorityCompetitions() throws Exception {
+        // Arrange
+        String[] playerIds = {"1", "2", "3", "4", "5"};
+        String[] competitions = {"Serie A", "Premier League", "La Liga", "Ligue 1", "Bundesliga"};
+        Long userId = 7L;
+        String email = "test@example.com";
 
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getPrincipal()).thenReturn(email);
+        when(authentication.getName()).thenReturn(email);
+        when(jwtUtil.extractUserId(email)).thenReturn(userId);
 
-        // First competition throws error
-        when(footballDataService.getTopScorersByCompetitionId(eq("2019"), anyInt(), anyString()))
-                .thenThrow(new IOException("Connection failed"));
+        for (int i = 0; i < playerIds.length; i++) {
+            ObjectNode response = mapper.createObjectNode();
+            response.put("id", Integer.parseInt(playerIds[i]));
+            response.put("name", "Player " + i);
+            response.put("competition", competitions[i]);
+            when(performanceService.handlePerformance(userId, playerIds[i])).thenReturn(response);
+        }
 
-        // Second competition returns empty
-        when(footballDataService.getTopScorersByCompetitionId(eq("2021"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, false));
+        // Act & Assert
+        for (int i = 0; i < playerIds.length; i++) {
+            ResponseEntity<Object> result = performanceController.performance(playerIds[i]);
+            assertNotNull(result);
+            assertEquals(HttpStatus.OK, result.getStatusCode());
+            ObjectNode body = (ObjectNode) result.getBody();
+            assertEquals(competitions[i], body.get("competition").asText());
+        }
 
-        // Third competition finds player
-        when(footballDataService.getTopScorersByCompetitionId(eq("2014"), anyInt(), anyString()))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
-
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
-
-        assertNotNull(result);
-        assertEquals("La Liga", result.get("competition").asText());
-    }
-
-    @Tag("unit")
-    @Test
-    void testHandlePerformance_NullRendimientoField() throws IOException, InterruptedException {
-        Long userId = 21L;
-        String playerId = "44";
-
-        Consultas consulta = new Consultas();
-        consulta.setId(1L);
-        consulta.setUserId(userId);
-        consulta.setRendimiento(null);
-
-        when(consultasRepository.findByUserId(userId)).thenReturn(Optional.of(consulta));
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024"))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
-
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
-
-        assertNotNull(result);
-        verify(consultasRepository).save(argThat(c -> {
-            try {
-                JsonNode performance = mapper.readTree(c.getRendimiento());
-                return performance.isArray() && performance.size() == 1;
-            } catch (Exception e) {
-                return false;
-            }
-        }));
-    }
-
-    @Tag("unit")
-    @Test
-    void testHandlePerformance_EmptyRendimientoString() throws IOException, InterruptedException {
-        Long userId = 22L;
-        String playerId = "44";
-
-        Consultas consulta = new Consultas();
-        consulta.setId(1L);
-        consulta.setUserId(userId);
-        consulta.setRendimiento("");
-
-        when(consultasRepository.findByUserId(userId)).thenReturn(Optional.of(consulta));
-        when(footballDataService.getCompetitions()).thenReturn(createMockCompetitionsResponse());
-        when(footballDataService.getTopScorersByCompetitionId("2019", 200, "2024"))
-                .thenReturn(createMockTopScorersResponse(playerId, true));
-
-        ObjectNode result = performanceService.handlePerformance(userId, playerId);
-
-        assertNotNull(result);
-        verify(consultasRepository).save(any(Consultas.class));
+        verify(metricsService, times(5)).incrementRequests();
     }
 }
