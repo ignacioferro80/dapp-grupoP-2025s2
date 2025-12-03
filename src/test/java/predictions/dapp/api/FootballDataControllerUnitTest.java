@@ -339,4 +339,189 @@ class FootballDataControllerUnitTest {
         Mockito.verify(metricsService).incrementRequests();
         Mockito.verify(metricsService).incrementErrors();
     }
+
+    @Tag("unit")
+    @Test
+    void testGetCompetitions_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getCompetitions();
+
+        mockMvc.perform(get("/api/football/competitions")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetCompetitionMatches_WithoutMatchday() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode mockResponse = mapper.createObjectNode();
+        mockResponse.putArray("matches");
+
+        Mockito.doReturn(mockResponse)
+                .when(footballDataService)
+                .getMatchesByCompetition("PL", null);
+
+        mockMvc.perform(get("/api/football/competitions/PL/matches")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matches").exists());
+
+        Mockito.verify(metricsService).incrementRequests();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetCompetitionMatches_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getMatchesByCompetition("PL", 1);
+
+        mockMvc.perform(get("/api/football/competitions/PL/matches")
+                        .param("matchday", "1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetCompetitionResults_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getResultsByCompetition("PL");
+
+        mockMvc.perform(get("/api/football/competitions/PL/results")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetCompetitionFixtures_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getFixtures("PL");
+
+        mockMvc.perform(get("/api/football/competitions/PL/fixtures")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetTeams_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getTeams();
+
+        mockMvc.perform(get("/api/football/teams")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetTeams_GenericException() throws Exception {
+        Mockito.doThrow(new RuntimeException("Service error"))
+                .when(footballDataService)
+                .getTeams();
+
+        mockMvc.perform(get("/api/football/teams")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetTeamResults_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getResultsByTeam("86");
+
+        mockMvc.perform(get("/api/football/teams/86/results")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetTeamResults_GenericException() throws Exception {
+        Mockito.doThrow(new RuntimeException("Service error"))
+                .when(footballDataService)
+                .getResultsByTeam("86");
+
+        mockMvc.perform(get("/api/football/teams/86/results")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetTeamFixtures_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getFixturesByTeam("86");
+
+        mockMvc.perform(get("/api/football/teams/86/fixtures")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetTeamLastResult_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getLastResultByTeam("86");
+
+        mockMvc.perform(get("/api/football/teams/86/lastResult")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testGetTeamFutureMatches_InterruptedException() throws Exception {
+        Mockito.doThrow(new InterruptedException("Thread interrupted"))
+                .when(footballDataService)
+                .getFutureMatchesByTeamFromNowToEndOfYear("86");
+
+        mockMvc.perform(get("/api/football/teams/86/futureMatches")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError());
+
+        Mockito.verify(metricsService).incrementRequests();
+        Mockito.verify(metricsService).incrementErrors();
+    }
 }
