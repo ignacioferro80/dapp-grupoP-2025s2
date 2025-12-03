@@ -568,7 +568,6 @@ class ComparisonTest {
     void testCompareTeams_MetricsExceptionFromStandings() throws IOException, InterruptedException {
         // Setup: Create matches that will trigger standings lookup
         ObjectNode team1Matches = createMockMatchesResponse("86", "Arsenal FC");
-        ObjectNode team2Matches = createMockMatchesResponse("65", "Manchester City FC");
         ObjectNode competitions = createMockCompetitionsResponse();
 
         when(footballDataService.getLastMatchesFinished("86", 10)).thenReturn(team1Matches);

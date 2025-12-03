@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,12 +18,13 @@ import predictions.dapp.service.MetricsService;
 import predictions.dapp.service.PredictionService;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("test")
@@ -47,13 +49,14 @@ class PredictionControllerTest {
         // Setup metricsService default behavior to pass through the callable
         doNothing().when(metricsService).incrementRequests();
         doNothing().when(metricsService).incrementErrors();
-        when(metricsService.measureLatency(any())).thenAnswer(invocation -> {
-            try {
-                return invocation.getArgument(0, java.util.concurrent.Callable.class).call();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        when(metricsService.measureLatency(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> {
+                    try {
+                        return invocation.getArgument(0, java.util.concurrent.Callable.class).call();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     private void setupAuthenticatedUser(String email, Long userId) {
@@ -62,9 +65,6 @@ class PredictionControllerTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
         when(jwtUtil.extractUserId(email)).thenReturn(userId);
     }
-
-
-
 
     @Tag("unit")
     @Test
@@ -78,7 +78,7 @@ class PredictionControllerTest {
 
         ResponseEntity<Object> response = predictionController.predictMatchWinner("86", "65");
 
-        assertEquals(500, response.getStatusCodeValue());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         verify(metricsService).incrementErrors();
     }
 
@@ -94,14 +94,9 @@ class PredictionControllerTest {
 
         ResponseEntity<Object> response = predictionController.predictMatchWinner("86", "65");
 
-        assertEquals(500, response.getStatusCodeValue());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         verify(metricsService).incrementErrors();
     }
-
-
-
-
-
 
     @Tag("unit")
     @Test
@@ -115,7 +110,7 @@ class PredictionControllerTest {
 
         ResponseEntity<Object> response = predictionController.predictMatchWinner("170", "180");
 
-        assertEquals(500, response.getStatusCodeValue());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         verify(metricsService).incrementErrors();
     }
 
@@ -131,7 +126,7 @@ class PredictionControllerTest {
 
         ResponseEntity<Object> response = predictionController.predictMatchWinner("700", "800");
 
-        assertEquals(500, response.getStatusCodeValue());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         verify(metricsService).incrementErrors();
     }
 
@@ -147,18 +142,9 @@ class PredictionControllerTest {
 
         ResponseEntity<Object> response = predictionController.predictMatchWinner("900", "1000");
 
-        assertEquals(500, response.getStatusCodeValue());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         verify(metricsService).incrementErrors();
     }
-
-
-
-
-
-
-
-
-
 
     @Tag("unit")
     @Test
@@ -172,12 +158,10 @@ class PredictionControllerTest {
 
         ResponseEntity<Object> response = predictionController.predictMatchWinner("800", "900");
 
-        assertEquals(500, response.getStatusCodeValue());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         verify(predictionService).predictWinner("800", "900", userId);
         verify(metricsService).incrementErrors();
     }
-
-
 
     @Tag("unit")
     @Test
@@ -193,6 +177,4 @@ class PredictionControllerTest {
 
         verify(metricsService).incrementErrors();
     }
-
-
 }
