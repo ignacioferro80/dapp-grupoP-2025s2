@@ -16,6 +16,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import predictions.dapp.controller.ComparisonController;
+import predictions.dapp.exceptions.MetricsException;
 import predictions.dapp.service.CacheService;
 import predictions.dapp.service.ComparisonService;
 import predictions.dapp.service.FootballDataService;
@@ -560,5 +561,26 @@ class ComparisonTest {
 
         assertEquals(500, response.getStatusCode().value());
         verify(metricsService, times(1)).incrementErrors();
+    }
+
+    @Tag("unit")
+    @Test
+    void testCompareTeams_MetricsExceptionFromStandings() throws IOException, InterruptedException {
+        // Setup: Create matches that will trigger standings lookup
+        ObjectNode team1Matches = createMockMatchesResponse("86", "Arsenal FC");
+        ObjectNode team2Matches = createMockMatchesResponse("65", "Manchester City FC");
+        ObjectNode competitions = createMockCompetitionsResponse();
+
+        when(footballDataService.getLastMatchesFinished("86", 10)).thenReturn(team1Matches);
+        when(footballDataService.getCompetitions()).thenReturn(competitions);
+
+        // Mock getStandings to throw IOException (which will be wrapped in MetricsException)
+        when(footballDataService.getStandings(anyString()))
+                .thenThrow(new IOException("Network error fetching standings"));
+
+        // Execute and verify MetricsException is thrown
+        assertThrows(MetricsException.class, () -> {
+            comparisonServiceReal.compareTeams("86", "65");
+        });
     }
 }
