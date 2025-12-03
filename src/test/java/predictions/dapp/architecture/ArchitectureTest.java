@@ -22,9 +22,6 @@ class ArchitectureTest {
     private final JavaClasses classes =
             new ClassFileImporter().importPackages(BASE_PACKAGE);
 
-    // -------------------------------
-    // 1) Validación de capas
-    // -------------------------------
     @Test
     void repositoriesShouldOnlyDependOnModelAndSpringData() {
         ArchRuleDefinition.classes()
@@ -38,9 +35,6 @@ class ArchitectureTest {
                 .check(classes);
     }
 
-    // -------------------------------
-    // 2) Validación de anotaciones correctas
-    // -------------------------------
     @Test
     void servicesMustBeAnnotatedWithService() {
 
@@ -58,9 +52,6 @@ class ArchitectureTest {
                 .check(classes);
     }
 
-    // -------------------------------
-    // 3) Evitar ciclos entre paquetes
-    // -------------------------------
     @Test
     void noCyclicDependenciesBetweenPackages() {
         slices().matching(BASE_PACKAGE + ".(*)..")
@@ -68,9 +59,6 @@ class ArchitectureTest {
                 .check(classes);
     }
 
-    // -------------------------------
-    // 4) Restricción: controllers NO pueden acceder a repositories
-    // -------------------------------
     @Test
     void controllersShouldNotAccessRepositories() {
         ArchRuleDefinition.noClasses()
@@ -80,9 +68,6 @@ class ArchitectureTest {
                 .check(classes);
     }
 
-    // -------------------------------
-    // 5) Model NO depende de Service ni Controller
-    // -------------------------------
     @Test
     void modelShouldNotDependOnServiceOrController() {
         ArchRuleDefinition.noClasses()

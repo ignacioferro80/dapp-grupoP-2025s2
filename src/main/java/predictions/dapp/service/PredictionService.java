@@ -24,12 +24,15 @@ public class PredictionService {
 
     private final FootballDataService footballDataService;
     private final ConsultasRepository consultasRepository;
+    private final CacheService cacheService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public PredictionService(FootballDataService footballDataService,
-                             ConsultasRepository consultasRepository) {
+                             ConsultasRepository consultasRepository,
+                             CacheService cacheService) {
         this.footballDataService = footballDataService;
         this.consultasRepository = consultasRepository;
+        this.cacheService = cacheService;
     }
 
     // ============================================================
@@ -143,12 +146,25 @@ public class PredictionService {
     }
 
     // ============================================================
-    // PUBLIC API
+    // PUBLIC API WITH CACHE INTEGRATION
     // ============================================================
 
     @Transactional
     public Map<String, Object> predictWinner(String teamId1, String teamId2, Long userId)
             throws IOException, InterruptedException {
+
+        // STEP 1: Check cache first
+        Map<String, Object> cachedPrediction = cacheService.getPrediction(teamId1, teamId2);
+
+        if (cachedPrediction != null && !cachedPrediction.isEmpty()) {
+            logger.info("Returning cached prediction for teams {} vs {}", teamId1, teamId2);
+            // Save to user history even if cached
+            savePrediction(userId, cachedPrediction);
+            return cachedPrediction;
+        }
+
+        // STEP 2: Cache miss - calculate fresh prediction
+        logger.info("Cache miss - calculating fresh prediction for teams {} vs {}", teamId1, teamId2);
 
         TeamStats stats1 = getStats(teamId1);
         TeamStats stats2 = getStats(teamId2);
@@ -168,6 +184,10 @@ public class PredictionService {
         response.put("probabilidad_" + stats2.teamName, String.format(PERCENTAGE_FORMAT, prob2));
         response.put("prediction", winner + " con " + String.format(PERCENTAGE_FORMAT, winnerProb));
 
+        // STEP 3: Cache the new prediction
+        cacheService.cachePrediction(teamId1, teamId2, response);
+
+        // STEP 4: Save to user history
         savePrediction(userId, response);
 
         return response;
@@ -312,7 +332,7 @@ public class PredictionService {
     }
 
     // ============================================================
-    // INTERNAL CLASSES (unchanged)
+    // INTERNAL CLASSES
     // ============================================================
 
     private static class TeamStats {

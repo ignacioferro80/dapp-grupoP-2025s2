@@ -25,10 +25,6 @@ public class ComparisonService {
         this.cacheService = cacheService;
     }
 
-    // ============================================================
-    // INTERNAL DEDUPLICATION HELPERS (LOCAL ONLY, NO NEW FILES)
-    // ============================================================
-
     private JsonNode safeArray(JsonNode parent, String field) {
         JsonNode arr = parent.get(field);
         return (arr != null && arr.isArray()) ? arr : null;
@@ -123,13 +119,13 @@ public class ComparisonService {
 
         for (String league : leagues) {
             StandingResult res = evaluateLeague(league, teamId);
-            if (res.found) {
+            try {
                 totalPoints += res.points;
                 totalPos += res.position;
                 totalGD += res.goalDifference;
                 count++;
-            } else {
-                logger.warn("Could not find standings for league: {}", league);
+            } catch (Exception e) {
+                throw new MetricsException("Could not find standings for league: {}" + league, e);
             }
         }
 
@@ -137,9 +133,7 @@ public class ComparisonService {
         return new StandingsData(totalPoints, avgPos, totalGD, count);
     }
 
-    // ============================================================
     // PUBLIC ENTRYPOINT
-    // ============================================================
 
     public Map<String, Object> compareTeams(String teamId1, String teamId2)
             throws IOException, InterruptedException {
@@ -156,9 +150,7 @@ public class ComparisonService {
         return response;
     }
 
-    // ============================================================
     // TEAM STATISTICS PROCESSING
-    // ============================================================
 
     private TeamComparisonStats getStats(String teamId)
             throws IOException, InterruptedException {
@@ -248,9 +240,7 @@ public class ComparisonService {
         return new MatchResult(name, won, lost, gs, gc, true);
     }
 
-    // ============================================================
     // OUTPUT MAPPING
-    // ============================================================
 
     private Map<String, Object> buildMap(TeamComparisonStats s) {
         Map<String, Object> m = new LinkedHashMap<>();
@@ -269,9 +259,7 @@ public class ComparisonService {
         return m;
     }
 
-    // ============================================================
     // INTERNAL CLASSES (unchanged structure)
-    // ============================================================
 
     private static class TeamComparisonStats {
         String id;

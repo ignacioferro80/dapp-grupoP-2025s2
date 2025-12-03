@@ -24,6 +24,7 @@ public class PerformanceService {
 
     private final ConsultasRepository consultasRepository;
     private final FootballDataService footballDataService;
+    private final CacheService cacheService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     // Delay between API calls in milliseconds (6 seconds = 10 requests per minute max)
@@ -34,9 +35,11 @@ public class PerformanceService {
     private static final List<String> PRIORITY_COMPETITION_IDS = List.of("2019", "2021", "2014", "2015", "2002");
 
     public PerformanceService(ConsultasRepository consultasRepository,
-                              FootballDataService footballDataService) {
+                              FootballDataService footballDataService,
+                              CacheService cacheService) {
         this.consultasRepository = consultasRepository;
         this.footballDataService = footballDataService;
+        this.cacheService = cacheService;
     }
 
     @Transactional
@@ -45,27 +48,45 @@ public class PerformanceService {
             logger.info("Fetching performance data for userId: {} and playerId: [PROTECTED]", userId);
         }
 
-        // STEP 1: Fetch all available competitions from API
+        // STEP 1: Check cache first
+        ObjectNode cachedPerformance = cacheService.getPerformance(playerId);
+
+        if (cachedPerformance != null) {
+            logger.info("Returning cached performance for playerId: {}", playerId);
+            // Still save to user history even if cached
+            savePlayerPerformanceToDatabase(userId, cachedPerformance);
+            return cachedPerformance;
+        }
+
+        // STEP 2: Cache miss - fetch fresh data
+        logger.info("Cache miss - fetching fresh performance data for playerId: {}", playerId);
+
+        // Fetch all available competitions from API
         JsonNode allCompetitions = fetchAllCompetitions();
 
-        // STEP 2: Organize competitions by priority (major leagues first)
+        // Organize competitions by priority (major leagues first)
         CompetitionLists organizedCompetitions = organizeCompetitionsByPriority(allCompetitions);
 
-        // STEP 3: Search for player in competitions (priority first, then others)
+        // Search for player in competitions (priority first, then others)
         ObjectNode playerStats = searchForPlayerInAllCompetitions(
                 organizedCompetitions.priorityCompetitions,
                 organizedCompetitions.otherCompetitions,
                 playerId
         );
 
-        // STEP 4: If player found in top scorers, save and return
+        // If player found in top scorers, cache and return
         if (playerStats != null) {
+            cacheService.cachePerformance(playerId, playerStats);
             savePlayerPerformanceToDatabase(userId, playerStats);
             return playerStats;
         }
 
-        // STEP 5: Player not in any top scorers list - get basic info as fallback
+        // Player not in any top scorers list - get basic info as fallback
         ObjectNode basicPlayerInfo = fetchBasicPlayerInfoAsFallback(playerId);
+
+        // Cache the basic info too (so we don't search all competitions again)
+        cacheService.cachePerformance(playerId, basicPlayerInfo);
+
         savePlayerPerformanceToDatabase(userId, basicPlayerInfo);
         return basicPlayerInfo;
     }
