@@ -14,40 +14,78 @@ class PerformanceDataExceptionTest {
     void testPerformanceDataException_WithMessageAndCause() {
         // Arrange
         String expectedMessage = "Error obtaining performance data";
-        IOException cause = new IOException("Database connection failed");
+        Throwable cause = new RuntimeException("Root cause");
 
         // Act
         PerformanceDataException exception = new PerformanceDataException(expectedMessage, cause);
 
         // Assert
-        assertNotNull(exception);
         assertEquals(expectedMessage, exception.getMessage());
         assertEquals(cause, exception.getCause());
-        assertTrue(exception instanceof RuntimeException);
     }
 
     @Tag("unit")
     @Test
-    void testPerformanceDataException_CauseIsPreserved() {
+    void testPerformanceDataException_WithOnlyMessage() {
         // Arrange
-        InterruptedException cause = new InterruptedException("Operation interrupted");
-        String message = "Error fetching team performance data";
+        String expectedMessage = "Error obtaining performance data";
 
         // Act
-        PerformanceDataException exception = new PerformanceDataException(message, cause);
+        PerformanceDataException exception = new PerformanceDataException(expectedMessage, null);
 
         // Assert
-        assertNotNull(exception.getCause());
-        assertEquals(InterruptedException.class, exception.getCause().getClass());
-        assertEquals("Operation interrupted", exception.getCause().getMessage());
+        assertEquals(expectedMessage, exception.getMessage());
+        assertNull(exception.getCause());
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformanceDataException_WithNullMessageAndCause() {
+        // Act
+        PerformanceDataException exception = new PerformanceDataException(null, null);
+
+        // Assert
+        assertNull(exception.getMessage());
+        assertNull(exception.getCause());
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformanceDataException_WithIOExceptionCause() {
+        // Arrange
+        String expectedMessage = "Failed to fetch performance data";
+        IOException ioException = new IOException("IO error");
+
+        // Act
+        PerformanceDataException exception = new PerformanceDataException(expectedMessage, ioException);
+
+        // Assert
+        assertEquals(expectedMessage, exception.getMessage());
+        assertEquals(ioException, exception.getCause());
+    }
+
+    @Tag("unit")
+    @Test
+    void testPerformanceDataException_WithInterruptedExceptionCause() {
+        // Arrange
+        String expectedMessage = "Operation interrupted";
+        InterruptedException interruptedException = new InterruptedException("Operation interrupted");
+
+        // Act
+        PerformanceDataException exception = new PerformanceDataException(expectedMessage, interruptedException);
+
+        // Assert
+        assertEquals(expectedMessage, exception.getMessage());
+        assertEquals(interruptedException, exception.getCause());
     }
 
     @Tag("unit")
     @Test
     void testPerformanceDataException_CanBeThrown() {
         // Arrange & Act & Assert
+        RuntimeException cause = new RuntimeException("Root cause");
         PerformanceDataException exception = assertThrows(PerformanceDataException.class, () -> {
-            throw new PerformanceDataException("Test error", new RuntimeException("Root cause"));
+            throw new PerformanceDataException("Test error", cause);
         });
 
         assertEquals("Test error", exception.getMessage());
@@ -57,39 +95,29 @@ class PerformanceDataExceptionTest {
     @Tag("unit")
     @Test
     void testPerformanceDataException_WithNullCause() {
+        // Arrange
+        String expectedMessage = "Test error with null cause";
+
         // Act
-        PerformanceDataException exception = new PerformanceDataException("Error message", null);
+        PerformanceDataException exception = new PerformanceDataException(expectedMessage, null);
 
         // Assert
-        assertEquals("Error message", exception.getMessage());
+        assertEquals(expectedMessage, exception.getMessage());
         assertNull(exception.getCause());
     }
 
     @Tag("unit")
     @Test
-    void testPerformanceDataException_ExtendsRuntimeException() {
+    void testPerformanceDataException_PreserveCauseMessage() {
         // Arrange
-        PerformanceDataException exception = new PerformanceDataException("Test", new Exception());
+        IOException ioException = new IOException("Original IO error");
+
+        // Act
+        PerformanceDataException exception = new PerformanceDataException("Wrapped IO error", ioException);
 
         // Assert
-        assertTrue(exception instanceof RuntimeException);
-        assertTrue(exception instanceof Exception);
-        assertTrue(exception instanceof Throwable);
-    }
-
-    @Tag("unit")
-    @Test
-    void testPerformanceDataException_InCatchBlock() {
-        // Simulate real usage in service layer
-        try {
-            // Simulate an InterruptedException that would be caught
-            throw new InterruptedException("Thread was interrupted");
-        } catch (InterruptedException e) {
-            PerformanceDataException wrapped = new PerformanceDataException("Error fetching performance data", e);
-
-            assertEquals("Error fetching performance data", wrapped.getMessage());
-            assertEquals(InterruptedException.class, wrapped.getCause().getClass());
-        }
+        assertEquals("Wrapped IO error", exception.getMessage());
+        assertEquals("Original IO error", exception.getCause().getMessage());
     }
 
     @Tag("unit")

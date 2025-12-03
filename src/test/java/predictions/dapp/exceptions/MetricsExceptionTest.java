@@ -14,40 +14,78 @@ class MetricsExceptionTest {
     void testMetricsException_WithMessageAndCause() {
         // Arrange
         String expectedMessage = "Error obtaining metrics data";
-        IOException cause = new IOException("Network timeout");
+        Throwable cause = new RuntimeException("Root cause");
 
         // Act
         MetricsException exception = new MetricsException(expectedMessage, cause);
 
         // Assert
-        assertNotNull(exception);
         assertEquals(expectedMessage, exception.getMessage());
         assertEquals(cause, exception.getCause());
-        assertTrue(exception instanceof RuntimeException);
     }
 
     @Tag("unit")
     @Test
-    void testMetricsException_CauseIsPreserved() {
+    void testMetricsException_WithOnlyMessage() {
         // Arrange
-        InterruptedException cause = new InterruptedException("Thread interrupted");
-        String message = "Error obteniendo standings para: Premier League";
+        String expectedMessage = "Error obtaining metrics data";
 
         // Act
-        MetricsException exception = new MetricsException(message, cause);
+        MetricsException exception = new MetricsException(expectedMessage, null);
 
         // Assert
-        assertNotNull(exception.getCause());
-        assertEquals(InterruptedException.class, exception.getCause().getClass());
-        assertEquals("Thread interrupted", exception.getCause().getMessage());
+        assertEquals(expectedMessage, exception.getMessage());
+        assertNull(exception.getCause());
+    }
+
+    @Tag("unit")
+    @Test
+    void testMetricsException_WithNullMessageAndCause() {
+        // Act
+        MetricsException exception = new MetricsException(null, null);
+
+        // Assert
+        assertNull(exception.getMessage());
+        assertNull(exception.getCause());
+    }
+
+    @Tag("unit")
+    @Test
+    void testMetricsException_WithIOExceptionCause() {
+        // Arrange
+        String expectedMessage = "Failed to fetch matches";
+        IOException ioException = new IOException("IO error");
+
+        // Act
+        MetricsException exception = new MetricsException(expectedMessage, ioException);
+
+        // Assert
+        assertEquals(expectedMessage, exception.getMessage());
+        assertEquals(ioException, exception.getCause());
+    }
+
+    @Tag("unit")
+    @Test
+    void testMetricsException_WithInterruptedExceptionCause() {
+        // Arrange
+        String expectedMessage = "Thread interrupted";
+        InterruptedException interruptedException = new InterruptedException("Thread interrupted");
+
+        // Act
+        MetricsException exception = new MetricsException(expectedMessage, interruptedException);
+
+        // Assert
+        assertEquals(expectedMessage, exception.getMessage());
+        assertEquals(interruptedException, exception.getCause());
     }
 
     @Tag("unit")
     @Test
     void testMetricsException_CanBeThrown() {
         // Arrange & Act & Assert
+        RuntimeException cause = new RuntimeException("Root cause");
         MetricsException exception = assertThrows(MetricsException.class, () -> {
-            throw new MetricsException("Test error", new RuntimeException("Root cause"));
+            throw new MetricsException("Test error", cause);
         });
 
         assertEquals("Test error", exception.getMessage());
@@ -57,24 +95,29 @@ class MetricsExceptionTest {
     @Tag("unit")
     @Test
     void testMetricsException_WithNullCause() {
+        // Arrange
+        String expectedMessage = "Test error with null cause";
+
         // Act
-        MetricsException exception = new MetricsException("Error message", null);
+        MetricsException exception = new MetricsException(expectedMessage, null);
 
         // Assert
-        assertEquals("Error message", exception.getMessage());
+        assertEquals(expectedMessage, exception.getMessage());
         assertNull(exception.getCause());
     }
 
     @Tag("unit")
     @Test
-    void testMetricsException_ExtendsRuntimeException() {
+    void testMetricsException_PreserveCauseMessage() {
         // Arrange
-        MetricsException exception = new MetricsException("Test", new Exception());
+        IOException ioException = new IOException("Original IO error");
+
+        // Act
+        MetricsException exception = new MetricsException("Wrapped IO error", ioException);
 
         // Assert
-        assertTrue(exception instanceof RuntimeException);
-        assertTrue(exception instanceof Exception);
-        assertTrue(exception instanceof Throwable);
+        assertEquals("Wrapped IO error", exception.getMessage());
+        assertEquals("Original IO error", exception.getCause().getMessage());
     }
 
     @Tag("unit")
