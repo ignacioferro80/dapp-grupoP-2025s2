@@ -25,194 +25,81 @@ public class ComparisonService {
         this.cacheService = cacheService;
     }
 
-    public Map<String, Object> compareTeams(String teamId1, String teamId2)
-            throws IOException, InterruptedException {
+    // ============================================================
+    // INTERNAL DEDUPLICATION HELPERS (LOCAL ONLY, NO NEW FILES)
+    // ============================================================
 
-
-        // Obtain stats for both teams - EXACTLY like PredictionService
-        TeamComparisonStats stats1 = getTeamComparisonStats(teamId1);
-        TeamComparisonStats stats2 = getTeamComparisonStats(teamId2);
-
-        // Prepare response
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("team1", buildTeamStatsMap(stats1));
-        response.put("team2", buildTeamStatsMap(stats2));
-
-        // Cache the comparison result
-        cacheService.cacheComparison(teamId1, teamId2, response);
-
-        return response;
+    private JsonNode safeArray(JsonNode parent, String field) {
+        JsonNode arr = parent.get(field);
+        return (arr != null && arr.isArray()) ? arr : null;
     }
 
-    private TeamComparisonStats getTeamComparisonStats(String teamId)
-            throws IOException, InterruptedException {
-
-        TeamComparisonStats stats = new TeamComparisonStats();
-        stats.id = teamId;
-
-        // 1. Obtain last 10 matches played - SAME AS PredictionService
-        JsonNode lastMatches = footballDataService.getLastMatchesFinished(teamId, 10);
-        calculateWinsAndGoals(lastMatches, teamId, stats);
-
-        // 2. Obtain unique leagues played - SAME AS PredictionService
-        Set<String> leagues = getUniqueLeagues(lastMatches);
-        stats.competitions = new ArrayList<>(leagues);  // ← FIX: Ahora sí se llena
-
-        // 3. For each league, obtain standings - SAME AS PredictionService
-        StandingsData standingsData = processLeagueStandings(leagues, teamId);
-
-        stats.totalPoints = standingsData.totalPoints;
-        stats.avgPosition = standingsData.avgPosition;
-        stats.totalGoalDiff = standingsData.totalGoalDiff;
-        stats.leagueCount = standingsData.leagueCount;
-
-        return stats;
+    private String safeText(JsonNode node, String field) {
+        return node != null ? node.path(field).asText("") : "";
     }
 
-    private void calculateWinsAndGoals(JsonNode matchesResponse, String teamId, TeamComparisonStats stats) {
-        JsonNode matches = matchesResponse.get("matches");
-        if (matches == null || !matches.isArray()) {
-            return;
-        }
+    private int safeInt(JsonNode node, String field) {
+        return node != null ? node.path(field).asInt(0) : 0;
+    }
 
-        int wonGames = 0;
-        int lostGames = 0;
-        int drawnGames = 0;
-        int goalsScored = 0;
-        int goalsConceded = 0;
-        int matchesPlayed = 0;
-        String teamName = "";
+    private String getCompetitionId(String leagueName) throws IOException, InterruptedException {
+        JsonNode competitions = footballDataService.getCompetitions();
+        JsonNode list = safeArray(competitions, "competitions");
+        if (list == null) return null;
 
-        for (JsonNode match : matches) {
-            MatchResult result = processMatch(match, teamId);
-            if (result.teamName != null && !result.teamName.isEmpty()) {
-                teamName = result.teamName;
-            }
-
-            if (result.played) {
-                matchesPlayed++;
-                goalsScored += result.goalsScored;
-                goalsConceded += result.goalsConceded;
-
-                if (result.won) {
-                    wonGames++;
-                } else if (result.lost) {
-                    lostGames++;
-                } else {
-                    drawnGames++;
-                }
+        for (JsonNode comp : list) {
+            if (leagueName.equals(safeText(comp, "name"))) {
+                return safeText(comp, "id");
             }
         }
-
-        stats.teamName = teamName;
-        stats.wonGames = wonGames;
-        stats.lostGames = lostGames;
-        stats.drawnGames = drawnGames;
-        stats.goalsScored = goalsScored;
-        stats.goalsConceded = goalsConceded;
-        stats.matchesPlayed = matchesPlayed;
+        return null;
     }
 
-    private MatchResult processMatch(JsonNode match, String teamId) {
-        JsonNode score = match.get("score");
-        if (score == null) {
-            return new MatchResult(null, false, false, 0, 0, false);
-        }
-
-        String winner = score.path("winner").asText("");
-        JsonNode fullTime = score.get("fullTime");
-        if (fullTime == null) {
-            return new MatchResult(null, false, false, 0, 0, false);
-        }
-
-        int homeGoals = fullTime.path("home").asInt(0);
-        int awayGoals = fullTime.path("away").asInt(0);
-
-        JsonNode homeTeam = match.path("homeTeam");
-        JsonNode awayTeam = match.path("awayTeam");
-
-        boolean isHomeTeam = homeTeam.path("id").asText("").equals(teamId);
-        boolean isAwayTeam = awayTeam.path("id").asText("").equals(teamId);
-
-        String teamName = null;
-        boolean won = false;
-        boolean lost = false;
-        int goalsScored = 0;
-        int goalsConceded = 0;
-        boolean played = false;
-
-        if (isHomeTeam) {
-            teamName = homeTeam.path("name").asText("");
-            won = "HOME_TEAM".equals(winner);
-            lost = "AWAY_TEAM".equals(winner);
-            goalsScored = homeGoals;
-            goalsConceded = awayGoals;
-            played = true;
-        } else if (isAwayTeam) {
-            teamName = awayTeam.path("name").asText("");
-            won = "AWAY_TEAM".equals(winner);
-            lost = "HOME_TEAM".equals(winner);
-            goalsScored = awayGoals;
-            goalsConceded = homeGoals;
-            played = true;
-        }
-
-        return new MatchResult(teamName, won, lost, goalsScored, goalsConceded, played);
-    }
-
-    private Set<String> getUniqueLeagues(JsonNode matchesResponse) {
+    private Set<String> extractLeagues(JsonNode matchesResponse) {
         Set<String> leagues = new HashSet<>();
-        JsonNode matches = matchesResponse.get("matches");
-        if (matches == null || !matches.isArray()) {
-            return leagues;
-        }
+        JsonNode matches = safeArray(matchesResponse, "matches");
+        if (matches == null) return leagues;
 
         for (JsonNode match : matches) {
-            String leagueName = match.path("competition").path("name").asText("");
-            if (!leagueName.isEmpty()) {
-                leagues.add(leagueName);
-            }
+            String league = match.path("competition").path("name").asText("");
+            if (!league.isEmpty()) leagues.add(league);
         }
         return leagues;
     }
 
-    private StandingsData processLeagueStandings(Set<String> leagues, String teamId)
-            throws IOException, InterruptedException {
-        int totalPoints = 0;
-        int totalPosition = 0;
-        int totalGoalDiff = 0;
-        int leagueCount = 0;
+    private Map<String, Object> extractTeamStanding(JsonNode standingsResponse, String teamId) {
+        JsonNode standings = safeArray(standingsResponse, "standings");
+        if (standings == null || standings.isEmpty()) return Collections.emptyMap();
 
-        for (String leagueName : leagues) {
-            StandingResult result = processLeagueStanding(leagueName, teamId);
-            if (result.found) {
-                totalPoints += result.points;
-                totalPosition += result.position;
-                totalGoalDiff += result.goalDifference;
-                leagueCount++;
-            } else {
-                logger.warn("Could not find standings for league: {}", leagueName);
+        JsonNode table = safeArray(standings.get(0), "table");
+        if (table == null) return Collections.emptyMap();
+
+        for (JsonNode entry : table) {
+            if (teamId.equals(entry.path("team").path("id").asText(""))) {
+                Map<String, Object> out = new HashMap<>();
+                out.put(POSITION_KEY, safeInt(entry, POSITION_KEY));
+                out.put(POINTS_KEY, safeInt(entry, POINTS_KEY));
+                out.put(GOAL_DIFFERENCE_KEY, safeInt(entry, GOAL_DIFFERENCE_KEY));
+                return out;
             }
         }
-
-        double avgPosition = leagueCount > 0 ? (double) totalPosition / leagueCount : 20;
-        return new StandingsData(totalPoints, avgPosition, totalGoalDiff, leagueCount);
+        return Collections.emptyMap();
     }
 
-    private StandingResult processLeagueStanding(String leagueName, String teamId)
+    private StandingResult evaluateLeague(String leagueName, String teamId)
             throws IOException, InterruptedException {
+
         try {
             String competitionId = getCompetitionId(leagueName);
             if (competitionId != null) {
                 JsonNode standings = footballDataService.getStandings(competitionId);
-                Map<String, Object> teamStanding = extractTeamStanding(standings, teamId);
-
-                if (teamStanding != null && !teamStanding.isEmpty()) {
+                Map<String, Object> standing = extractTeamStanding(standings, teamId);
+                if (!standing.isEmpty()) {
                     return new StandingResult(
                             true,
-                            (int) teamStanding.get(POINTS_KEY),
-                            (int) teamStanding.get(POSITION_KEY),
-                            (int) teamStanding.get(GOAL_DIFFERENCE_KEY)
+                            (int) standing.get(POINTS_KEY),
+                            (int) standing.get(POSITION_KEY),
+                            (int) standing.get(GOAL_DIFFERENCE_KEY)
                     );
                 }
             }
@@ -220,83 +107,173 @@ public class ComparisonService {
             Thread.currentThread().interrupt();
             throw new MetricsException("Error obteniendo standings para: " + leagueName, e);
         } catch (IOException e) {
-            // CRITICAL FIX: Same exception handling as PredictionService
             throw new MetricsException("Error obteniendo standings para: " + leagueName, e);
         }
+
         return new StandingResult(false, 0, 0, 0);
     }
 
-    private String getCompetitionId(String leagueName) throws IOException, InterruptedException {
-        JsonNode competitions = footballDataService.getCompetitions();
-        JsonNode competitionsList = competitions.get("competitions");
+    private StandingsData processLeagueStandings(Set<String> leagues, String teamId)
+            throws IOException, InterruptedException {
 
-        if (competitionsList == null || !competitionsList.isArray()) {
-            return null;
-        }
+        int totalPoints = 0, totalPos = 0, totalGD = 0, count = 0;
 
-        for (JsonNode comp : competitionsList) {
-            if (leagueName.equals(comp.path("name").asText(""))) {
-                return comp.path("id").asText(null);
+        for (String league : leagues) {
+            StandingResult res = evaluateLeague(league, teamId);
+            if (res.found) {
+                totalPoints += res.points;
+                totalPos += res.position;
+                totalGD += res.goalDifference;
+                count++;
+            } else {
+                logger.warn("Could not find standings for league: {}", league);
             }
         }
-        return null;
+
+        double avgPos = (count > 0) ? (double) totalPos / count : 20;
+        return new StandingsData(totalPoints, avgPos, totalGD, count);
     }
 
-    private Map<String, Object> extractTeamStanding(JsonNode standingsResponse, String teamId) {
-        JsonNode standings = standingsResponse.get("standings");
+    // ============================================================
+    // PUBLIC ENTRYPOINT
+    // ============================================================
 
-        if (standings == null || !standings.isArray() || standings.isEmpty()) {
-            return Collections.emptyMap();
-        }
+    public Map<String, Object> compareTeams(String teamId1, String teamId2)
+            throws IOException, InterruptedException {
 
-        JsonNode table = standings.get(0).get("table");
-        if (table == null || !table.isArray()) {
-            return Collections.emptyMap();
-        }
+        TeamComparisonStats t1 = getStats(teamId1);
+        TeamComparisonStats t2 = getStats(teamId2);
 
-        for (JsonNode entry : table) {
-            if (teamId.equals(entry.path("team").path("id").asText(""))) {
-                Map<String, Object> result = new HashMap<>();
-                result.put(POSITION_KEY, entry.path(POSITION_KEY).asInt(0));
-                result.put(POINTS_KEY, entry.path(POINTS_KEY).asInt(0));
-                result.put(GOAL_DIFFERENCE_KEY, entry.path(GOAL_DIFFERENCE_KEY).asInt(0));
-                return result;
-            }
-        }
-        return Collections.emptyMap();
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("team1", buildMap(t1));
+        response.put("team2", buildMap(t2));
+
+        cacheService.cacheComparison(teamId1, teamId2, response);
+
+        return response;
     }
 
-    private Map<String, Object> buildTeamStatsMap(TeamComparisonStats stats) {
-        Map<String, Object> teamMap = new LinkedHashMap<>();
-        teamMap.put("id", stats.id);
-        teamMap.put("name", stats.teamName);  // ← FIX: Usar teamName en vez de name
-        teamMap.put("matchesPlayed", stats.matchesPlayed);
-        teamMap.put("wonGames", stats.wonGames);
-        teamMap.put("drawnGames", stats.drawnGames);
-        teamMap.put("lostGames", stats.lostGames);
-        teamMap.put("goalsScored", stats.goalsScored);
-        teamMap.put("goalsConceded", stats.goalsConceded);
-        teamMap.put("totalPoints", stats.totalPoints);
-        teamMap.put("avgPosition", stats.avgPosition);
-        teamMap.put(GOAL_DIFFERENCE_KEY, stats.totalGoalDiff);  // ← FIX: Usar totalGoalDiff
-        teamMap.put("competitions", stats.competitions);
-        return teamMap;
+    // ============================================================
+    // TEAM STATISTICS PROCESSING
+    // ============================================================
+
+    private TeamComparisonStats getStats(String teamId)
+            throws IOException, InterruptedException {
+
+        TeamComparisonStats stats = new TeamComparisonStats();
+        stats.id = teamId;
+
+        JsonNode lastMatches = footballDataService.getLastMatchesFinished(teamId, 10);
+        evaluateMatches(lastMatches, teamId, stats);
+
+        Set<String> leagues = extractLeagues(lastMatches);
+        stats.competitions = new ArrayList<>(leagues);
+
+        StandingsData standings = processLeagueStandings(leagues, teamId);
+
+        stats.totalPoints = standings.totalPoints;
+        stats.avgPosition = standings.avgPosition;
+        stats.totalGoalDiff = standings.totalGoalDiff;
+        stats.leagueCount = standings.leagueCount;
+
+        return stats;
     }
 
-    // Helper classes
+    private void evaluateMatches(JsonNode matchesResponse, String teamId, TeamComparisonStats stats) {
+        JsonNode matches = safeArray(matchesResponse, "matches");
+        if (matches == null) return;
+
+        int won = 0, lost = 0, draw = 0;
+        int scored = 0, conceded = 0;
+        int played = 0;
+        String name = "";
+
+        for (JsonNode match : matches) {
+            MatchResult r = parseMatch(match, teamId);
+
+            if (r.teamName != null && !r.teamName.isEmpty()) name = r.teamName;
+            if (!r.played) continue;
+
+            played++;
+            scored += r.goalsScored;
+            conceded += r.goalsConceded;
+
+            if (r.won) won++;
+            else if (r.lost) lost++;
+            else draw++;
+        }
+
+        stats.teamName = name;
+        stats.matchesPlayed = played;
+        stats.wonGames = won;
+        stats.drawnGames = draw;
+        stats.lostGames = lost;
+        stats.goalsScored = scored;
+        stats.goalsConceded = conceded;
+    }
+
+    private MatchResult parseMatch(JsonNode match, String teamId) {
+
+        JsonNode score = match.get("score");
+        JsonNode full = (score != null) ? score.get("fullTime") : null;
+
+        if (full == null) return new MatchResult(null, false, false, 0, 0, false);
+
+        int home = full.path("home").asInt(0);
+        int away = full.path("away").asInt(0);
+
+        JsonNode homeTeam = match.path("homeTeam");
+        JsonNode awayTeam = match.path("awayTeam");
+
+        boolean isHome = teamId.equals(homeTeam.path("id").asText(""));
+        boolean isAway = teamId.equals(awayTeam.path("id").asText(""));
+
+        if (!isHome && !isAway) return new MatchResult(null, false, false, 0, 0, false);
+
+        String winner = score.path("winner").asText("");
+
+        String name = isHome ? homeTeam.path("name").asText("") : awayTeam.path("name").asText("");
+        boolean won = isHome ? "HOME_TEAM".equals(winner) : "AWAY_TEAM".equals(winner);
+        boolean lost = isHome ? "AWAY_TEAM".equals(winner) : "HOME_TEAM".equals(winner);
+
+        int gs = isHome ? home : away;
+        int gc = isHome ? away : home;
+
+        return new MatchResult(name, won, lost, gs, gc, true);
+    }
+
+    // ============================================================
+    // OUTPUT MAPPING
+    // ============================================================
+
+    private Map<String, Object> buildMap(TeamComparisonStats s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", s.id);
+        m.put("name", s.teamName);
+        m.put("matchesPlayed", s.matchesPlayed);
+        m.put("wonGames", s.wonGames);
+        m.put("drawnGames", s.drawnGames);
+        m.put("lostGames", s.lostGames);
+        m.put("goalsScored", s.goalsScored);
+        m.put("goalsConceded", s.goalsConceded);
+        m.put("totalPoints", s.totalPoints);
+        m.put("avgPosition", s.avgPosition);
+        m.put(GOAL_DIFFERENCE_KEY, s.totalGoalDiff);
+        m.put("competitions", s.competitions);
+        return m;
+    }
+
+    // ============================================================
+    // INTERNAL CLASSES (unchanged structure)
+    // ============================================================
+
     private static class TeamComparisonStats {
-        String id = "";
-        String teamName = "";  // ← Campo principal para el nombre
-        int matchesPlayed = 0;
-        int wonGames = 0;
-        int drawnGames = 0;
-        int lostGames = 0;
-        int goalsScored = 0;
-        int goalsConceded = 0;
-        int totalPoints = 0;
-        double avgPosition = 20.0;
-        int totalGoalDiff = 0;
-        int leagueCount = 0;
+        String id;
+        String teamName = "";
+        int matchesPlayed, wonGames, lostGames, drawnGames;
+        int goalsScored, goalsConceded;
+        int totalPoints, totalGoalDiff, leagueCount;
+        double avgPosition = 20;
         List<String> competitions = new ArrayList<>();
     }
 
@@ -306,11 +283,11 @@ public class ComparisonService {
         final int totalGoalDiff;
         final int leagueCount;
 
-        StandingsData(int totalPoints, double avgPosition, int totalGoalDiff, int leagueCount) {
-            this.totalPoints = totalPoints;
-            this.avgPosition = avgPosition;
-            this.totalGoalDiff = totalGoalDiff;
-            this.leagueCount = leagueCount;
+        StandingsData(int points, double avg, int gd, int count) {
+            this.totalPoints = points;
+            this.avgPosition = avg;
+            this.totalGoalDiff = gd;
+            this.leagueCount = count;
         }
     }
 
@@ -320,28 +297,25 @@ public class ComparisonService {
         final int position;
         final int goalDifference;
 
-        StandingResult(boolean found, int points, int position, int goalDifference) {
-            this.found = found;
-            this.points = points;
-            this.position = position;
-            this.goalDifference = goalDifference;
+        StandingResult(boolean f, int p, int pos, int gd) {
+            this.found = f;
+            this.points = p;
+            this.position = pos;
+            this.goalDifference = gd;
         }
     }
 
     private static class MatchResult {
         final String teamName;
-        final boolean won;
-        final boolean lost;
-        final int goalsScored;
-        final int goalsConceded;
-        final boolean played;
+        final boolean won, lost, played;
+        final int goalsScored, goalsConceded;
 
-        MatchResult(String teamName, boolean won, boolean lost, int goalsScored, int goalsConceded, boolean played) {
-            this.teamName = teamName;
-            this.won = won;
-            this.lost = lost;
-            this.goalsScored = goalsScored;
-            this.goalsConceded = goalsConceded;
+        MatchResult(String n, boolean w, boolean l, int gs, int gc, boolean played) {
+            this.teamName = n;
+            this.won = w;
+            this.lost = l;
+            this.goalsScored = gs;
+            this.goalsConceded = gc;
             this.played = played;
         }
     }
