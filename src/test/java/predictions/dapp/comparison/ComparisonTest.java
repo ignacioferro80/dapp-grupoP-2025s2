@@ -470,8 +470,7 @@ class ComparisonTest {
 
     @Tag("unit")
     @Test
-    void testController_CompareTeams_ExceptionInMeasureLatency() throws Exception {
-        // Setup: Authenticated user but measureLatency throws exception
+    void testController_CompareTeams_ExceptionInMeasureLatency() {
         SecurityContextHolder.setContext(securityContext);
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.isAuthenticated()).thenReturn(true);

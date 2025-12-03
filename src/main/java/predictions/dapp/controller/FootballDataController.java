@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import predictions.dapp.service.FootballDataService;
 import predictions.dapp.service.MetricsService;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api/football")
 @Tag(name = "Football Data", description = "Public football data APIs - competitions, teams, matches, and fixtures from Football-Data.org")
@@ -31,7 +33,7 @@ public class FootballDataController {
     // ============================================================
     @FunctionalInterface
     private interface JsonSupplier {
-        JsonNode get() throws Exception;
+        JsonNode get() throws IOException, InterruptedException;
     }
 
     private ResponseEntity<JsonNode> execute(JsonSupplier supplier) {

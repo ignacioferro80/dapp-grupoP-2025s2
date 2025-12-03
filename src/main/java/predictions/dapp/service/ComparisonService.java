@@ -319,8 +319,11 @@ public class ComparisonService {
 
     private static class MatchResult {
         final String teamName;
-        final boolean won, lost, played;
-        final int goalsScored, goalsConceded;
+        final boolean won;
+        final boolean lost;
+        final boolean played;
+        final int goalsScored;
+        final int goalsConceded;
 
         MatchResult(String n, boolean w, boolean l, int gs, int gc, boolean played) {
             this.teamName = n;
