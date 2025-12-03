@@ -21,10 +21,6 @@ public class CacheMaintenanceScheduler {
      */
     @Scheduled(fixedRate = 1800000) // 30 minutes in milliseconds
     public void cleanExpiredCacheEntries() {
-        CacheService.CacheStats statsBefore = cacheService.getStats();
-
         cacheService.clearExpiredEntries();
-
-        CacheService.CacheStats statsAfter = cacheService.getStats();
     }
 }
