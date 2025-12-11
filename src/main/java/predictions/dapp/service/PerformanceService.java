@@ -1,5 +1,6 @@
 package predictions.dapp.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -15,6 +16,8 @@ import predictions.dapp.repositories.ConsultasRepository;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class PerformanceService {
@@ -26,6 +29,7 @@ public class PerformanceService {
     private final FootballDataService footballDataService;
     private final CacheService cacheService;
     private final ObjectMapper mapper = new ObjectMapper();
+    private final MethodCacheService methodCacheService;
 
     // Delay between API calls in milliseconds (6 seconds = 10 requests per minute max)
     private static final long API_CALL_DELAY_MS = 6000;
@@ -36,10 +40,12 @@ public class PerformanceService {
 
     public PerformanceService(ConsultasRepository consultasRepository,
                               FootballDataService footballDataService,
-                              CacheService cacheService) {
+                              CacheService cacheService,
+                              MethodCacheService methodCacheService) {
         this.consultasRepository = consultasRepository;
         this.footballDataService = footballDataService;
         this.cacheService = cacheService;
+        this.methodCacheService = methodCacheService;
     }
 
     @Transactional
@@ -48,18 +54,37 @@ public class PerformanceService {
             logger.info("Fetching performance data for userId: {} and playerId: [PROTECTED]", userId);
         }
 
-        // STEP 1: Check cache first
+        // Generate cache key based on method signature and parameters
+        String cacheKey = String.format("handlePerformance(%s)", playerId);
+
+        // Try to get cached result from method cache
+        Optional<Map<String, Object>> cachedResult = methodCacheService.getCachedResult(
+                cacheKey,
+                new TypeReference<Map<String, Object>>() {}
+        );
+
+        if (cachedResult.isPresent()) {
+            logger.info("Method cache HIT for playerId: {}", playerId);
+            ObjectNode cachedNode = mapper.valueToTree(cachedResult.get());
+            // Still save to user history even if cached
+            savePlayerPerformanceToDatabase(userId, cachedNode);
+            return cachedNode;
+        }
+
+        // Method cache miss - check old cache system
+        logger.info("Method cache MISS - checking old cache for playerId: {}", playerId);
         ObjectNode cachedPerformance = cacheService.getPerformance(playerId);
 
         if (cachedPerformance != null) {
-            logger.info("Returning cached performance for playerId: {}", playerId);
-            // Still save to user history even if cached
+            logger.info("Old cache HIT - storing in method cache for playerId: {}", playerId);
+            // Store in method cache for future requests
+            methodCacheService.cacheResult(cacheKey, cachedPerformance);
             savePlayerPerformanceToDatabase(userId, cachedPerformance);
             return cachedPerformance;
         }
 
-        // STEP 2: Cache miss - fetch fresh data
-        logger.info("Cache miss - fetching fresh performance data for playerId: {}", playerId);
+        // Both caches miss - fetch fresh data
+        logger.info("Both caches MISS - fetching fresh performance data for playerId: {}", playerId);
 
         // Fetch all available competitions from API
         JsonNode allCompetitions = fetchAllCompetitions();
@@ -77,6 +102,7 @@ public class PerformanceService {
         // If player found in top scorers, cache and return
         if (playerStats != null) {
             cacheService.cachePerformance(playerId, playerStats);
+            methodCacheService.cacheResult(cacheKey, playerStats);
             savePlayerPerformanceToDatabase(userId, playerStats);
             return playerStats;
         }
@@ -84,8 +110,9 @@ public class PerformanceService {
         // Player not in any top scorers list - get basic info as fallback
         ObjectNode basicPlayerInfo = fetchBasicPlayerInfoAsFallback(playerId);
 
-        // Cache the basic info too (so we don't search all competitions again)
+        // Store in both caches
         cacheService.cachePerformance(playerId, basicPlayerInfo);
+        methodCacheService.cacheResult(cacheKey, basicPlayerInfo);
 
         savePlayerPerformanceToDatabase(userId, basicPlayerInfo);
         return basicPlayerInfo;

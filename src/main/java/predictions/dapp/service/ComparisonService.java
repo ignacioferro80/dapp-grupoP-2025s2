@@ -16,10 +16,14 @@ public class ComparisonService {
 
     private final FootballDataService footballDataService;
     private final CacheService cacheService;
+    private final MethodCacheService methodCacheService;
 
-    public ComparisonService(FootballDataService footballDataService, CacheService cacheService) {
+    public ComparisonService(FootballDataService footballDataService,
+                             CacheService cacheService,
+                             MethodCacheService methodCacheService) {
         this.footballDataService = footballDataService;
         this.cacheService = cacheService;
+        this.methodCacheService = methodCacheService;
     }
 
     private JsonNode safeArray(JsonNode parent, String field) {
@@ -130,11 +134,21 @@ public class ComparisonService {
         return new StandingsData(totalPoints, avgPos, totalGD, count);
     }
 
-    // PUBLIC ENTRYPOINT
+    // PUBLIC ENTRYPOINT WITH CACHING
 
     public Map<String, Object> compareTeams(String teamId1, String teamId2)
             throws IOException, InterruptedException {
 
+        // Generate cache key based on method signature and parameters
+        String cacheKey = String.format("compareTeams(%s,%s)", teamId1, teamId2);
+
+        // Try to get cached result
+        Optional<Map> cachedResult = methodCacheService.getCachedResult(cacheKey, Map.class);
+        if (cachedResult.isPresent()) {
+            return cachedResult.get();
+        }
+
+        // Cache miss - execute full comparison
         TeamComparisonStats t1 = getStats(teamId1);
         TeamComparisonStats t2 = getStats(teamId2);
 
@@ -142,7 +156,9 @@ public class ComparisonService {
         response.put("team1", buildMap(t1));
         response.put("team2", buildMap(t2));
 
+        // Store in both caches
         cacheService.cacheComparison(teamId1, teamId2, response);
+        methodCacheService.cacheResult(cacheKey, response);
 
         return response;
     }

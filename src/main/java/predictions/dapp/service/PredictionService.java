@@ -25,14 +25,17 @@ public class PredictionService {
     private final FootballDataService footballDataService;
     private final ConsultasRepository consultasRepository;
     private final CacheService cacheService;
+    private final MethodCacheService methodCacheService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public PredictionService(FootballDataService footballDataService,
                              ConsultasRepository consultasRepository,
-                             CacheService cacheService) {
+                             CacheService cacheService,
+                             MethodCacheService methodCacheService) {
         this.footballDataService = footballDataService;
         this.consultasRepository = consultasRepository;
         this.cacheService = cacheService;
+        this.methodCacheService = methodCacheService;
     }
 
     // ============================================================
@@ -128,8 +131,8 @@ public class PredictionService {
 
         int totalPoints = 0;
         int totalPos = 0;
-        int  totalGD = 0;
-        int  count = 0;
+        int totalGD = 0;
+        int count = 0;
 
         for (String league : leagues) {
             StandingResult res = evaluateLeague(league, teamId);
@@ -153,18 +156,34 @@ public class PredictionService {
     public Map<String, Object> predictWinner(String teamId1, String teamId2, Long userId)
             throws IOException, InterruptedException {
 
-        // STEP 1: Check cache first
+        // Generate cache key based on method signature and parameters
+        String cacheKey = String.format("predictWinner(%s,%s)", teamId1, teamId2);
+
+        // Try to get cached result from method cache
+        Optional<Map<String, Object>> cachedResult = methodCacheService.getCachedMapResult(cacheKey);
+
+        if (cachedResult.isPresent()) {
+            logger.info("Method cache HIT for prediction: {} vs {}", teamId1, teamId2);
+            Map<String, Object> prediction = cachedResult.get();
+            // Save to user history even if cached
+            savePrediction(userId, prediction);
+            return prediction;
+        }
+
+        // Method cache miss - check old cache system
+        logger.info("Method cache MISS - checking old cache for prediction: {} vs {}", teamId1, teamId2);
         Map<String, Object> cachedPrediction = cacheService.getPrediction(teamId1, teamId2);
 
         if (cachedPrediction != null && !cachedPrediction.isEmpty()) {
-            logger.info("Returning cached prediction for teams {} vs {}", teamId1, teamId2);
-            // Save to user history even if cached
+            logger.info("Old cache HIT - storing in method cache for prediction: {} vs {}", teamId1, teamId2);
+            // Store in method cache for future requests
+            methodCacheService.cacheResult(cacheKey, cachedPrediction);
             savePrediction(userId, cachedPrediction);
             return cachedPrediction;
         }
 
-        // STEP 2: Cache miss - calculate fresh prediction
-        logger.info("Cache miss - calculating fresh prediction for teams {} vs {}", teamId1, teamId2);
+        // Both caches miss - calculate fresh prediction
+        logger.info("Both caches MISS - calculating fresh prediction for teams {} vs {}", teamId1, teamId2);
 
         TeamStats stats1 = getStats(teamId1);
         TeamStats stats2 = getStats(teamId2);
@@ -184,10 +203,11 @@ public class PredictionService {
         response.put("probabilidad_" + stats2.teamName, String.format(PERCENTAGE_FORMAT, prob2));
         response.put("prediction", winner + " con " + String.format(PERCENTAGE_FORMAT, winnerProb));
 
-        // STEP 3: Cache the new prediction
+        // Store in both caches
         cacheService.cachePrediction(teamId1, teamId2, response);
+        methodCacheService.cacheResult(cacheKey, response);
 
-        // STEP 4: Save to user history
+        // Save to user history
         savePrediction(userId, response);
 
         return response;
